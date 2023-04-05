@@ -224,6 +224,7 @@ AC_CONFIG_FILES([
                  src/core/ucc_version.c
                  src/components/cl/basic/Makefile
                  src/components/cl/hier/Makefile
+                 src/components/cl/urom/Makefile
                  src/components/mc/cpu/Makefile
                  src/components/mc/cuda/Makefile
                  src/components/ec/cpu/Makefile

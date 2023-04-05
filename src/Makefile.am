@@ -4,7 +4,8 @@
 # See file LICENSE for terms.
 
 cl_dirs = components/cl/basic \
-		  components/cl/hier
+		  components/cl/hier  \
+		  components/cl/urom
 
 mc_dirs = components/mc/cpu
 ec_dirs = components/ec/cpu
