@@ -4,8 +4,11 @@
 # See file LICENSE for terms.
 
 cl_dirs = components/cl/basic \
-		  components/cl/hier  \
-		  components/cl/urom
+		  components/cl/hier
+
+if HAVE_UROM
+cl_dirs += components/cl/urom
+endif
 
 mc_dirs = components/mc/cpu
 ec_dirs = components/ec/cpu

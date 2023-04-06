@@ -174,6 +174,7 @@ AS_IF([test "x$with_docs_only" = xyes],
      m4_include([config/m4/rccl.m4])
      m4_include([config/m4/sharp.m4])
      m4_include([config/m4/mpi.m4])
+     m4_include([config/m4/urom.m4])
      m4_include([config/m4/ibverbs.m4])
      m4_include([config/m4/configure.m4])
      m4_include([config/m4/tl_coll_plugins.m4])
@@ -210,6 +211,8 @@ AS_IF([test "x$with_docs_only" = xyes],
      AC_MSG_RESULT([IBVERBS support: $ibverbs_happy, MLX5DV support: $mlx5dv_happy])
      ]) # Docs only
 
+     CHECK_UROM
+     AC_MSG_RESULT([UROM support: $urom_happy])
 
 CHECK_TLS
 CFLAGS="$CFLAGS -std=gnu11"
