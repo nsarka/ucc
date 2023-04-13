@@ -10,7 +10,7 @@
 #include "core/ucc_global_opts.h"
 #include "utils/ucc_math.h"
 
-#include <urom.h>
+#include <urom/api/urom.h>
 
 static int service_connect(urom_service_params_t *service_params, urom_service_h *service)
 {
@@ -107,21 +107,21 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
     /* TODO: rather than UROM_WORKER_TYPE_UCC, create a value of OR'd types */
     urom_status = urom_worker_spawn(
         self->urom_service, UROM_WORKER_TYPE_UCC, self->urom_worker_addr,
-        &self->urom_worker_len, self->urom_worker_id);
+        &self->urom_worker_len, &self->worker_id);
     if (UROM_OK != urom_status) {
         cl_error(&self->super, "failed to connect to urom worker");
         return UCC_ERR_NO_MESSAGE;
     }
 
     worker_params.serviceh        = self->urom_service;
-    worker_params.worker_id       = self->urom_worker_id;
+//    worker_params.worker_id       = self->worker_id;
     worker_params.addr            = self->urom_worker_addr;
-    worker_params.addr_len        = self->worker_addr_len;
+    worker_params.addr_len        = self->urom_worker_len;
     worker_params.num_cmd_notifyq = 16;
 
     urom_status = urom_worker_connect(&worker_params, &self->urom_worker);
     if (UROM_OK != urom_status) {
-        cl_error("failed to perform urom_worker_connect() with error: %s",
+        cl_error(&self->super, "failed to perform urom_worker_connect() with error: %s",
                  urom_status_string(urom_status));
         return UCC_ERR_NO_MESSAGE;
     }

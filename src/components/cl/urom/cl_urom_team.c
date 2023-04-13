@@ -13,13 +13,15 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_team_t, ucc_base_context_t *cl_context,
 {
     ucc_cl_urom_context_t *ctx       =
         ucc_derived_of(cl_context, ucc_cl_urom_context_t);
-    ucc_cl_urom_lib_t *lib = ctx->super.super.lib;
-    unsigned                n_tl_ctxs = ctx->super.n_tl_ctxs;
-    int                     i;
+    ucc_cl_urom_lib_t *urom_lib = ucc_derived_of(ctx->super.super.lib, ucc_cl_urom_lib_t);
+//    ucc_cl_urom_lib_t *lib = ctx->super.super.lib;
+    urom_status_t   urom_status;
+    //unsigned                n_tl_ctxs = ctx->super.n_tl_ctxs;
+//    int                     i;
     ucc_status_t            status;
     urom_worker_cmd_t team_cmd = {
         .cmd_type = UROM_WORKER_CMD_UCC,
-        .ucc.dpu_worker_id = params->rank;
+        .ucc.dpu_worker_id = params->rank,
         .ucc.cmd_type = UROM_WORKER_CMD_UCC_TEAM_CREATE,
         /* FIXME: proper way: use ec map.. for now assume linear */
         .ucc.team_create_cmd = 
@@ -35,11 +37,12 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_team_t, ucc_base_context_t *cl_context,
     if (!self->teams) {
         cl_error(cl_context->lib, "failed to allocate %zd bytes for urom teams", sizeof(ucc_team_h *) * 16);
         status = UCC_ERR_NO_MEMORY;
-        goto err;
+        return status;
+//        goto err;
     }
     self->n_teams = 0;
    
-    urom_status = urom_worker_push_cmdq(lib->urom_worker, 0, &team_cmd);
+    urom_status = urom_worker_push_cmdq(urom_lib->urom_worker, 0, &team_cmd);
     if (UROM_OK != urom_status) {
         // error
     }
@@ -77,10 +80,12 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_team_t, ucc_base_context_t *cl_context,
 #endif
     cl_debug(cl_context->lib, "posted cl team: %p", self);
     return UCC_OK;
-err:
+}
+/*err:
     ucc_free(self->tl_teams);
     return status;
 }
+*/
 
 UCC_CLASS_CLEANUP_FUNC(ucc_cl_urom_team_t)
 {
@@ -92,11 +97,11 @@ UCC_CLASS_DEFINE(ucc_cl_urom_team_t, ucc_cl_team_t);
 
 ucc_status_t ucc_cl_urom_team_destroy(ucc_base_team_t *cl_team)
 {
+#if 0
     ucc_cl_urom_team_t    *team    = ucc_derived_of(cl_team, ucc_cl_urom_team_t);
     ucc_cl_urom_context_t *ctx     = UCC_CL_UROM_TEAM_CTX(team);
     ucc_status_t            status  = UCC_OK;
     int                     i;
-#if 0
     if (NULL == team->team_create_req) {
         status = ucc_team_multiple_req_alloc(&team->team_create_req,
                                              team->n_tl_teams);
@@ -127,21 +132,24 @@ ucc_status_t ucc_cl_urom_team_destroy(ucc_base_team_t *cl_team)
     ucc_free(team->tl_teams);
     UCC_CLASS_DELETE_FUNC_NAME(ucc_cl_urom_team_t)(cl_team);
 #endif
-    return status;
+//    return status;
+    return UCC_OK;    
 }
 
 ucc_status_t ucc_cl_urom_team_create_test(ucc_base_team_t *cl_team)
 {
     ucc_cl_urom_team_t    *team = ucc_derived_of(cl_team, ucc_cl_urom_team_t);
     ucc_cl_urom_context_t *ctx  = UCC_CL_UROM_TEAM_CTX(team);
-    int                     i;
-    ucc_coll_score_t       *score, *score_next, *score_merge;
+    ucc_cl_urom_lib_t *urom_lib = ucc_derived_of(ctx->super.super.lib, ucc_cl_urom_lib_t);
+//    int                     i;
+//    ucc_coll_score_t       *score, *score_next, *score_merge;
     urom_status_t           urom_status;
+    urom_worker_notify_t   *notif;
 
-    urom_status = urom_worker_pop_notifyq(lib->urom_worker, 0, &notif);
+    urom_status = urom_worker_pop_notifyq(urom_lib->urom_worker, 0, &notif);
     if (UROM_ERR_QUEUE_EMPTY != urom_status) {
         if (urom_status == UROM_OK) {
-            if (notif->ucc.status == UCC_OK) {
+            if (notif->ucc.status == (urom_status_t)UCC_OK) {
                 team->teams[team->n_teams] = notif->ucc.team_create_nqe.team;
                 ++team->n_teams;
                 return UCC_OK;
@@ -149,7 +157,7 @@ ucc_status_t ucc_cl_urom_team_create_test(ucc_base_team_t *cl_team)
         }
         return UCC_ERR_NO_MESSAGE;
     }
-    return UCC_INPROGESS;
+    return UCC_INPROGRESS;
 }
 
 #if 0
@@ -213,10 +221,12 @@ ucc_status_t ucc_cl_urom_team_create_test(ucc_base_team_t *cl_team)
 ucc_status_t ucc_cl_urom_team_get_scores(ucc_base_team_t   *cl_team,
                                           ucc_coll_score_t **score)
 {
+/*oob_
     ucc_cl_urom_team_t *team = ucc_derived_of(cl_team, ucc_cl_urom_team_t);
     ucc_base_context_t  *ctx  = UCC_CL_TEAM_CTX(team);
     ucc_status_t         status;
-
+*/
+#if 0
     status = ucc_coll_score_dup(team->score, score);
     if (UCC_OK != status) {
         return status;
@@ -233,10 +243,11 @@ ucc_status_t ucc_cl_urom_team_get_scores(ucc_base_team_t   *cl_team,
             goto err;
         }
     }
+#endif
     return UCC_OK;
-
-err:
-    ucc_coll_score_free(*score);
-    *score = NULL;
-    return status;
 }
+//err:
+//    ucc_coll_score_free(*score);
+//    *score = NULL;
+//    return status;
+//}

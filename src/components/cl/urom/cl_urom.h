@@ -10,6 +10,11 @@
 #include "components/cl/ucc_cl_log.h"
 #include "components/tl/ucc_tl.h"
 #include "coll_score/ucc_coll_score.h"
+#include "utils/ucc_mpool.h"
+
+
+#include <urom/api/urom.h>
+#include <urom/api/urom_ucc.h>
 
 #ifndef UCC_CL_UROM_DEFAULT_SCORE
 #define UCC_CL_UROM_DEFAULT_SCORE 10
@@ -43,6 +48,7 @@ UCC_CLASS_DECLARE(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *,
 typedef struct ucc_cl_urom_context {
     ucc_cl_context_t   super;
     urom_domain_h      urom_domain;
+    ucc_mpool_t      sched_mp;
 } ucc_cl_urom_context_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_context_t, const ucc_base_context_params_t *,
                   const ucc_base_config_t *);

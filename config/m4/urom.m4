@@ -13,7 +13,7 @@ AS_IF([test "x$urom_checked" != "xyes"],[
 
     AS_IF([test "x$with_urom" != "xno"],
     [
-        save_CPPFLAGS="$CPPFLAGS"
+        save_CPPFLAGS="$CPPFLAGS $UCS_CPPFLAGS"
         save_CFLAGS="$CFLAGS"
         save_LDFLAGS="$LDFLAGS"
 
@@ -31,6 +31,21 @@ AS_IF([test "x$urom_checked" != "xyes"],[
         [
             check_urom_libdir="$with_urom_libdir"
             LDFLAGS="-L$check_urom_libdir $save_LDFLAGS"
+        ])
+
+        AC_CHECK_HEADERS([urom/api/urom.h],
+        [
+            AC_CHECK_LIB([urom], [urom_service_connect],
+            [
+                urom_happy="yes"
+            ],
+            [
+                echo "CPPFLAGS: $CPPFLAGS"
+                urom_happy="no"
+            ], [-lurom])
+        ],
+        [
+            urom_happy="no"
         ])
 
         AS_IF([test "x$urom_happy" = "xyes"],
