@@ -29,6 +29,7 @@ static inline ucc_cl_urom_schedule_t *
 ucc_cl_urom_get_schedule(ucc_cl_urom_team_t *team)
 {
     ucc_cl_urom_context_t  *ctx      = UCC_CL_UROM_TEAM_CTX(team);
+    printf("ctx: %p\n", ctx);
     ucc_cl_urom_schedule_t *schedule = ucc_mpool_get(&ctx->sched_mp);
 
     //UCC_CL_UROM_PROFILE_REQUEST_NEW(schedule, "cl_urom_sched_p", 0);

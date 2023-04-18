@@ -17,7 +17,7 @@
 #include <urom/api/urom_ucc.h>
 
 #ifndef UCC_CL_UROM_DEFAULT_SCORE
-#define UCC_CL_UROM_DEFAULT_SCORE 10
+#define UCC_CL_UROM_DEFAULT_SCORE 20
 #endif
 
 typedef struct ucc_cl_urom_iface {
@@ -41,6 +41,7 @@ typedef struct ucc_cl_urom_lib {
     void                    *urom_worker_addr;
     size_t                   urom_worker_len;
     uint64_t                 worker_id;
+    int                      pass_dc_exist;
 } ucc_cl_urom_lib_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *,
                   const ucc_base_config_t *);
@@ -48,7 +49,7 @@ UCC_CLASS_DECLARE(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *,
 typedef struct ucc_cl_urom_context {
     ucc_cl_context_t   super;
     urom_domain_h      urom_domain;
-    ucc_mpool_t      sched_mp;
+    ucc_mpool_t        sched_mp;
 } ucc_cl_urom_context_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_context_t, const ucc_base_context_params_t *,
                   const ucc_base_config_t *);
@@ -60,10 +61,16 @@ typedef struct ucc_cl_urom_team {
     int                      team_posted;
     ucc_team_h             **teams;
     unsigned                 n_teams;
+    ucc_coll_score_t        *score;
+    ucc_score_map_t         *score_map;
 
 } ucc_cl_urom_team_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_team_t, ucc_base_context_t *,
                   const ucc_base_team_params_t *);
+
+ucc_status_t ucc_cl_urom_coll_init(ucc_base_coll_args_t *coll_args,
+                                   ucc_base_team_t      *team,
+                                   ucc_coll_task_t     **task);
 
 #define UCC_CL_UROM_TEAM_CTX(_team)                                           \
     (ucc_derived_of((_team)->super.super.context, ucc_cl_urom_context_t))

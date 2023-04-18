@@ -41,6 +41,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_team_t, ucc_base_context_t *cl_context,
 //        goto err;
     }
     self->n_teams = 0;
+    self->score_map = NULL;
    
     urom_status = urom_worker_push_cmdq(urom_lib->urom_worker, 0, &team_cmd);
     if (UROM_OK != urom_status) {
@@ -141,20 +142,45 @@ ucc_status_t ucc_cl_urom_team_create_test(ucc_base_team_t *cl_team)
     ucc_cl_urom_team_t    *team = ucc_derived_of(cl_team, ucc_cl_urom_team_t);
     ucc_cl_urom_context_t *ctx  = UCC_CL_UROM_TEAM_CTX(team);
     ucc_cl_urom_lib_t *urom_lib = ucc_derived_of(ctx->super.super.lib, ucc_cl_urom_lib_t);
+    ucc_memory_type_t           mem_types[UCC_MEMORY_TYPE_LAST] = {0};
+    int mt_n = 1;
 //    int                     i;
-//    ucc_coll_score_t       *score, *score_next, *score_merge;
+    ucc_coll_score_t       *score = NULL;
     urom_status_t           urom_status;
+    ucc_status_t            ucc_status;
     urom_worker_notify_t   *notif;
 
     urom_status = urom_worker_pop_notifyq(urom_lib->urom_worker, 0, &notif);
     if (UROM_ERR_QUEUE_EMPTY != urom_status) {
         if (urom_status == UROM_OK) {
+            printf("urom_status: %d, notif->ucc.status: %d, notif->ucc.team_create_nqe.team: %p\n", urom_status, notif->ucc.status, notif->ucc.team_create_nqe.team);
             if (notif->ucc.status == (urom_status_t)UCC_OK) {
                 team->teams[team->n_teams] = notif->ucc.team_create_nqe.team;
                 ++team->n_teams;
+                ucc_status = ucc_coll_score_build_default(cl_team, UCC_CL_UROM_DEFAULT_SCORE,
+                                          ucc_cl_urom_coll_init, UCC_COLL_TYPE_ALLTOALL,
+                                          mem_types, mt_n, &score);
+                if (UCC_OK != ucc_status) {
+                    return ucc_status;
+                }
+
+#if 0
+                ucc_status = ucc_coll_score_alloc(&score);
+                if (UCC_OK != ucc_status) {
+                    cl_error(ctx->super.super.lib, "failed to build score map");
+                }
+#endif
+                ucc_status = ucc_coll_score_build_map(score, &team->score_map);
+                if (UCC_OK != ucc_status) {
+                    cl_error(ctx->super.super.lib, "failed to build score map");
+                }
+                team->score = score;
+                ucc_coll_score_set(team->score, UCC_CL_UROM_DEFAULT_SCORE);
+
                 return UCC_OK;
             }
         }
+        printf("urom_status: %d\n", urom_status);
         return UCC_ERR_NO_MESSAGE;
     }
     return UCC_INPROGRESS;
@@ -221,12 +247,9 @@ ucc_status_t ucc_cl_urom_team_create_test(ucc_base_team_t *cl_team)
 ucc_status_t ucc_cl_urom_team_get_scores(ucc_base_team_t   *cl_team,
                                           ucc_coll_score_t **score)
 {
-/*oob_
     ucc_cl_urom_team_t *team = ucc_derived_of(cl_team, ucc_cl_urom_team_t);
     ucc_base_context_t  *ctx  = UCC_CL_TEAM_CTX(team);
     ucc_status_t         status;
-*/
-#if 0
     status = ucc_coll_score_dup(team->score, score);
     if (UCC_OK != status) {
         return status;
@@ -243,11 +266,9 @@ ucc_status_t ucc_cl_urom_team_get_scores(ucc_base_team_t   *cl_team,
             goto err;
         }
     }
-#endif
     return UCC_OK;
+err:
+    ucc_coll_score_free(*score);
+    *score = NULL;
+    return status;
 }
-//err:
-//    ucc_coll_score_free(*score);
-//    *score = NULL;
-//    return status;
-//}

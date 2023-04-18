@@ -91,8 +91,10 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
         ucc_derived_of(config, ucc_cl_lib_config_t);
 	char * device = NULL;
     int                  ret;
+#if 0
     urom_status_t        urom_status;
     urom_worker_params_t worker_params;
+#endif
 
     UCC_CLASS_CALL_SUPER_INIT(ucc_cl_lib_t, &ucc_cl_urom.super, cl_config);
     cl_debug(&self->super, "initialized lib object: %p", self);
@@ -104,7 +106,16 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
         return UCC_ERR_NO_MESSAGE;
     }
 
+    self->urom_worker_addr = ucc_calloc(1, UROM_WORKER_ADDR_MAX_LEN, "urom worker addr");
+    if (!self->urom_worker_addr) {
+        //error 
+    }
+
+    self->pass_dc_exist = 0;
+#if 0
+    self->worker_id = 0;
     /* TODO: rather than UROM_WORKER_TYPE_UCC, create a value of OR'd types */
+    printf("self: %p urom_service: %p, worker addr: %p\n", self, self->urom_service, self->urom_worker_addr);
     urom_status = urom_worker_spawn(
         self->urom_service, UROM_WORKER_TYPE_UCC, self->urom_worker_addr,
         &self->urom_worker_len, &self->worker_id);
@@ -125,6 +136,8 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
                  urom_status_string(urom_status));
         return UCC_ERR_NO_MESSAGE;
     }
+    printf("DONE!\n");
+#endif
     return UCC_OK;
 }
 

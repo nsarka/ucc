@@ -38,6 +38,7 @@ static ucc_status_t ucc_cl_urom_alltoall_full_start(ucc_coll_task_t *task)
 //        return urom_to_ucc_status(status);
     }
 
+    printf("pushed the collective to urom\n");
     return ucc_progress_queue_enqueue(ctx->super.super.ucc_context->pq, task);
 }
 
@@ -94,10 +95,12 @@ ucc_status_t ucc_cl_urom_alltoall_full_init(
     memcpy(&args, coll_args, sizeof(args));
     status = ucc_schedule_init(schedule, &args, team); 
     if (UCC_OK != status) {
+        printf("FAILED to put schedule\n");
         ucc_cl_urom_put_schedule(schedule);
         return status;
     }
 
+    printf("schedule up!\n");
     schedule->super.post           = ucc_cl_urom_alltoall_full_start;
     schedule->super.progress       = ucc_cl_urom_alltoall_full_progress;
     schedule->super.finalize       = ucc_cl_urom_alltoall_full_finalize;
