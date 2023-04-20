@@ -12,39 +12,38 @@
 
 #include <urom/api/urom.h>
 
-static int service_connect(urom_service_params_t *service_params, urom_service_h *service)
+static int service_connect(ucc_cl_urom_lib_t *urom_lib, urom_service_params_t *service_params, urom_service_h *service)
 {
     urom_status_t status;
 
     status = urom_service_connect(service_params, service);
     if (status != UROM_OK) {
-        fprintf(stderr, "urom_service_connect() returned error: %s\n",
+        cl_error(&urom_lib->super, "urom_service_connect() returned error: %s\n",
                 urom_status_string(status));
         return -1;
-    };   
+    };
 
     return 0;
 }
 
 
-static int device_connect(char *dev_name, urom_service_h *service)
+static int device_connect(ucc_cl_urom_lib_t *urom_lib, char *dev_name, urom_service_h *service)
 {
+    urom_service_params_t service_params = {0};
     urom_status_t status;
     urom_device_t *dev;
     struct urom_device *device_list;
     int num_devices;
-    urom_service_params_t service_params = {0}; 
-    int ret; 
+    int ret;
 
     status = urom_get_device_list(&device_list, &num_devices);
     if (status != UROM_OK) {
-        fprintf(stderr, "urom_get_device_list() returned error: %s\n",
+        cl_error(&urom_lib->super, "urom_get_device_list() returned error: %s\n",
                 urom_status_string(status));
         return -1;
-    };   
+    };
 
     dev = device_list;
-
     while (dev) {
         if (dev_name) {
             if (!strcmp(dev_name, dev->name)) {
@@ -53,35 +52,30 @@ static int device_connect(char *dev_name, urom_service_h *service)
         } else {
             break;
         }
-
         dev = dev->next;
-    }    
-
+    }
     if (!dev) {
-        fprintf(stderr, "No matching device: %s\n", dev_name);
+        cl_error(urom_lib, "No matching device: %s\n", dev_name);
         return -1;
-    }    
+    }
 
     service_params.flags = UROM_SERVICE_PARAM_DEVICE;
-    service_params.device = dev; 
-
-    ret = service_connect(&service_params, service);
+    service_params.device = dev;
+    ret = service_connect(urom_lib, &service_params, service);
     if (ret) {
         status = urom_free_device_list(device_list);
-        assert(status == UROM_OK);
         return -1;
     }
 
     status = urom_free_device_list(device_list);
     if (status != UROM_OK) {
-        fprintf(stderr, "urom_free_device_list() returned error: %s\n",
+        cl_error(&urom_lib->super, "urom_free_device_list() returned error: %s\n",
                 urom_status_string(status));
         return -1;
-    };
+    }
 
     return 0;
 }
-
 
 /* NOLINTNEXTLINE  TODO params is not used*/
 UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
@@ -91,53 +85,24 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
         ucc_derived_of(config, ucc_cl_lib_config_t);
 	char * device = NULL;
     int                  ret;
-#if 0
-    urom_status_t        urom_status;
-    urom_worker_params_t worker_params;
-#endif
 
     UCC_CLASS_CALL_SUPER_INIT(ucc_cl_lib_t, &ucc_cl_urom.super, cl_config);
     cl_debug(&self->super, "initialized lib object: %p", self);
 
     /* how to know service here? */
-    ret = device_connect(device, &self->urom_service);
+    ret = device_connect(self, device, &self->urom_service);
     if (ret) {
         cl_error(&self->super, "failed to connect to urom");
-        return UCC_ERR_NO_MESSAGE;
+        return UCC_ERR_NO_RESOURCE;
     }
 
     self->urom_worker_addr = ucc_calloc(1, UROM_WORKER_ADDR_MAX_LEN, "urom worker addr");
     if (!self->urom_worker_addr) {
-        //error 
+        cl_error(&self->super, "failed to allocate %d bytes", UROM_WORKER_ADDR_MAX_LEN);
+        return UCC_ERR_NO_MEMORY;
     }
 
     self->pass_dc_exist = 0;
-#if 0
-    self->worker_id = 0;
-    /* TODO: rather than UROM_WORKER_TYPE_UCC, create a value of OR'd types */
-    printf("self: %p urom_service: %p, worker addr: %p\n", self, self->urom_service, self->urom_worker_addr);
-    urom_status = urom_worker_spawn(
-        self->urom_service, UROM_WORKER_TYPE_UCC, self->urom_worker_addr,
-        &self->urom_worker_len, &self->worker_id);
-    if (UROM_OK != urom_status) {
-        cl_error(&self->super, "failed to connect to urom worker");
-        return UCC_ERR_NO_MESSAGE;
-    }
-
-    worker_params.serviceh        = self->urom_service;
-//    worker_params.worker_id       = self->worker_id;
-    worker_params.addr            = self->urom_worker_addr;
-    worker_params.addr_len        = self->urom_worker_len;
-    worker_params.num_cmd_notifyq = 16;
-
-    urom_status = urom_worker_connect(&worker_params, &self->urom_worker);
-    if (UROM_OK != urom_status) {
-        cl_error(&self->super, "failed to perform urom_worker_connect() with error: %s",
-                 urom_status_string(urom_status));
-        return UCC_ERR_NO_MESSAGE;
-    }
-    printf("DONE!\n");
-#endif
     return UCC_OK;
 }
 
@@ -147,15 +112,12 @@ UCC_CLASS_CLEANUP_FUNC(ucc_cl_urom_lib_t)
 }
 
 UCC_CLASS_DEFINE(ucc_cl_urom_lib_t, ucc_cl_lib_t);
-#if 1
 static inline ucc_status_t check_tl_lib_attr(const ucc_base_lib_t *lib,
                                              ucc_tl_iface_t *      tl_iface,
                                              ucc_cl_lib_attr_t *   attr)
 {
     ucc_tl_lib_attr_t tl_attr;
     ucc_status_t      status;
-
-    /* F: cache urom lib attrs? does this matter? */
 
     memset(&tl_attr, 0, sizeof(tl_attr));
     status = tl_iface->lib.get_attr(NULL, &tl_attr.super);
@@ -170,11 +132,9 @@ static inline ucc_status_t check_tl_lib_attr(const ucc_base_lib_t *lib,
     attr->super.flags |= tl_attr.super.flags;
     return UCC_OK;
 }
-#endif
 ucc_status_t ucc_cl_urom_get_lib_attr(const ucc_base_lib_t *lib,
                                       ucc_base_lib_attr_t  *base_attr)
 {
-#if 1
     ucc_cl_lib_attr_t  *attr     = ucc_derived_of(base_attr, ucc_cl_lib_attr_t);
     ucc_cl_urom_lib_t *cl_lib   = ucc_derived_of(lib, ucc_cl_urom_lib_t);
     ucc_config_names_list_t *tls = &cl_lib->super.tls;
@@ -182,7 +142,6 @@ ucc_status_t ucc_cl_urom_get_lib_attr(const ucc_base_lib_t *lib,
     int                      i;
     ucc_status_t             status;
 
-    /* F: we only care about TL_UCP */
     attr->tls                = &cl_lib->super.tls.array;
     if (cl_lib->super.tls.requested) {
         status = ucc_config_names_array_dup(&cl_lib->super.tls_forced,
@@ -212,13 +171,11 @@ ucc_status_t ucc_cl_urom_get_lib_attr(const ucc_base_lib_t *lib,
             return status;
         }
     }
-#endif
     return UCC_OK;
 }
 
 ucc_status_t ucc_cl_urom_get_lib_properties(ucc_base_lib_properties_t *prop)
 {
-    /* F: fixed to 2, this is same as TL_UCP */
     prop->default_team_size = 2;
     prop->min_team_size     = 2;
     prop->max_team_size     = UCC_RANK_MAX;

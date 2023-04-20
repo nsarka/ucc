@@ -10,30 +10,6 @@
 
 #include "components/tl/ucp/tl_ucp.h"
 
-#if 0
-static urom_status_t oob_allgather(void *src, void *dst, size_t size,
-                                   void *ag_info, void **request)
-{
-    ucc_context_oob_coll_t *coll_info = (ucc_context_oob_coll_t *)ag_info;
-    urom_status_t urom_status;
-    ucc_status_t ucc_status;
-    void *req;
-
-    ucc_status = coll_info->allgather(src, dst, size, coll_info->coll_info, &req);
-    if (UCC_OK != ucc_status) {
-        return UROM_ERR_NO_MESSAGE;
-    }
-
-    *request = req;
-    return UROM_OK;
-}
-
-static urom_status_t req_test(void *request)
-{
-    ucc_status_t ucc_status;
-
-    ucc_status = req_test(
-#endif
 UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
                     const ucc_base_context_params_t *params,
                     const ucc_base_config_t *config)
@@ -42,14 +18,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         ucc_derived_of(config, ucc_cl_context_config_t);
     ucc_config_names_array_t *tls = &cl_config->cl_lib->tls.array;
     ucc_cl_urom_lib_t *urom_lib = ucc_derived_of(cl_config->cl_lib, ucc_cl_urom_lib_t);
-    ucc_status_t status;
-    urom_status_t urom_status;
-    int          i;
-    urom_mem_map_t *domain_mem_map;
-    urom_domain_params_t urom_domain_params;
-    urom_worker_notify_t *notif;
     ucc_mem_map_params_t ucc_mem_params = params->params.mem_params; 
-
     ucc_lib_params_t lib_params = {
         .mask = UCC_LIB_PARAM_FIELD_THREAD_MODE,
         .thread_mode = UCC_THREAD_SINGLE,
@@ -59,15 +28,6 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         .ucc.cmd_type = UROM_WORKER_CMD_UCC_LIB_CREATE,
         .ucc.lib_create_cmd.params = &lib_params,
     };
-    urom_worker_params_t worker_params;
-#if 0
-    urom_worker_cmd_t pass_dc_cmd = {
-        .cmd_type = UROM_WORKER_CMD_UCC,
-        .ucc.cmd_type = UROM_WORKER_CMD_CREATE_PASSIVE_DATA_CHANNEL,
-    };
-#endif
-
-    /* TODO: i need a passive dc */
     urom_worker_cmd_t ctx_cmd = {
         .cmd_type = UROM_WORKER_CMD_UCC,
         .ucc.dpu_worker_id = params->params.oob.oob_ep,
@@ -79,13 +39,21 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
             .size = params->params.oob.n_oob_eps,
         },
     };
+    ucc_tl_ucp_context_t *tl_ctx;
+    ucc_status_t status;
+    urom_status_t urom_status;
+    int          i;
+    urom_mem_map_t *domain_mem_map;
+    urom_domain_params_t urom_domain_params;
+    urom_worker_notify_t *notif;
+    urom_worker_params_t worker_params;
+
 
     UCC_CLASS_CALL_SUPER_INIT(ucc_cl_context_t, cl_config,
                               params->context);
     if (tls->count == 1 && !strcmp(tls->names[0], "all")) {
         tls = &params->context->all_tls;
     }
-
     self->super.tl_ctxs = ucc_malloc(sizeof(ucc_tl_context_t*) * tls->count,
                                "cl_urom_tl_ctxs");
     if (!self->super.tl_ctxs) {
@@ -110,14 +78,8 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         self->super.tl_ctxs = NULL;
         return UCC_ERR_NOT_FOUND;
     }
-#if 1
-    ucc_tl_ucp_context_t *tl_ctx = ucc_derived_of(self->super.tl_ctxs[1], ucc_tl_ucp_context_t);
-    printf("rkeys: %p\n", tl_ctx->rkeys);
-#endif
-#if 1
     urom_lib->worker_id = params->params.oob.oob_ep;
     /* TODO: rather than UROM_WORKER_TYPE_UCC, create a value of OR'd types */
-    printf("urom_lib: %p urom_service: %p, worker addr: %p\n", urom_lib, urom_lib->urom_service, urom_lib->urom_worker_addr);
     urom_status = urom_worker_spawn(
         urom_lib->urom_service, UROM_WORKER_TYPE_UCC, urom_lib->urom_worker_addr,
         &urom_lib->urom_worker_len, &urom_lib->worker_id);
@@ -138,9 +100,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
                  urom_status_string(urom_status));
         return UCC_ERR_NO_MESSAGE;
     }
-    printf("DONE!\n");
-#endif
-
+    tl_ctx = ucc_derived_of(self->super.tl_ctxs[1], ucc_tl_ucp_context_t);
     urom_domain_params.flags = UROM_DOMAIN_WORKER_ADDR;
     urom_domain_params.mask = UROM_DOMAIN_PARAM_FIELD_OOB |
                               UROM_DOMAIN_PARAM_FIELD_WORKER |
@@ -152,8 +112,6 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
     urom_domain_params.oob.n_oob_indexes = params->params.oob.n_oob_eps;
     urom_domain_params.oob.oob_index = params->params.oob.oob_ep;
 
-    printf("coll_info: %p, size: %d, pe #: %d\n", params->params.oob.coll_info, params->params.oob.n_oob_eps, params->params.oob.oob_ep);
-
     urom_domain_params.domain_worker_id = params->params.oob.oob_ep;
     urom_domain_params.workers = &urom_lib->urom_worker;
     urom_domain_params.num_workers = 1,
@@ -161,7 +119,6 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
 
     if (params->context->params.mask & UCC_CONTEXT_PARAM_FIELD_OOB &&
         params->context->params.mask & UCC_CONTEXT_PARAM_FIELD_MEM_PARAMS) {
-    //    ucc_mem_map_params_t ucc_mem_params = params->params.mem_params; 
         domain_mem_map = ucc_calloc(ucc_mem_params.n_segments, sizeof(urom_mem_map_t),
                                     "urom_domain_mem_map");
         if (!domain_mem_map) {
@@ -174,10 +131,8 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
             domain_mem_map[i].mask    = UROM_WORKER_MEM_MAP_FIELD_BASE_VA | UROM_WORKER_MEM_MAP_FIELD_MKEY;
             domain_mem_map[i].base_va = (uint64_t)ucc_mem_params.segments[i].address;
             domain_mem_map[i].len  = ucc_mem_params.segments[i].len;
-//            domain_mem_map[i].mask |= UROM_WORKER_MEM_MAP_FIELD_MKEY;
             domain_mem_map[i].mkey = tl_ctx->remote_info[i].packed_key;
             domain_mem_map[i].mkey_len = tl_ctx->remote_info[i].packed_key_len;
-            printf("ADDING %lx/%p to domain mem map with key %p and len %lu\n", domain_mem_map[i].base_va, tl_ctx->remote_info[i].va_base, domain_mem_map[i].mkey, domain_mem_map[i].mkey_len);
         }
 
         urom_domain_params.mask |= UROM_DOMAIN_PARAM_FIELD_MEM_MAP;
@@ -185,32 +140,6 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         urom_domain_params.mem_map.n_segments = ucc_mem_params.n_segments;
     }
 
-#if 0
-    pass_dc_cmd.ucc.pass_dc_create_cmd.ucp_addr = tl_ctx->worker.worker_address;
-    pass_dc_cmd.ucc.pass_dc_create_cmd.addr_len = tl_ctx->worker.ucp_addrlen;
-
-    printf("WORKER ADDRESS: %p, WORKER LEN: %lu\n",tl_ctx->worker.worker_address, tl_ctx->worker.ucp_addrlen); 
-#endif
-#if 0
-        urom_domain_params.flags = UROM_DOMAIN_WORKER_ADDR;
-        urom_domain_params.mask = UROM_DOMAIN_PARAM_FIELD_OOB |
-                                  UROM_DOMAIN_PARAM_FIELD_WORKER |
-                                  UROM_DOMAIN_PARAM_FIELD_WORKER_ID |
-                                  UROM_DOMAIN_PARAM_FIELD_MEM_MAP;
-        urom_domain_params.oob.allgather = params->params.oob.oob_allgather;
-        urom_domain_params.oob.req_test = params->params.oob.req_test;
-        urom_domain_params.oob.req_free = params->params.oob.req_free;
-        urom_domain_params.oob.coll_info = params->params.oob.coll_info;
-        urom_domain_params.oob.n_oob_indexes = params->params.oob.n_oob_eps;
-        urom_domain_params.oob.oob_index = params->params.oob.oob_ep;
-
-        urom_domain_params.domain_worker_id = params->params.oob.oob_ep;
-        urom_domain_params.workers = &urom_lib->urom_worker;
-        urom_domain_params.num_workers = 1,
-        urom_domain_params.domain_size = params->params.oob.n_oob_eps;
-        urom_domain_params.mem_map.segments = domain_mem_map;
-        urom_domain_params.mem_map.n_segments = ucc_mem_params->n_segments;
-#endif
     urom_status = urom_domain_create_post(&urom_domain_params, &self->urom_domain);
     if (urom_status < UROM_OK) {
         cl_error(&urom_lib->super.super, "failed to post urom domain: %s", urom_status_string(status));
@@ -232,17 +161,6 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         printf("debug: lib create notif->status: %d\n", notif->ucc.status);
         return notif->ucc.status;
     }
-#if 0
-        urom_worker_push_cmdq(urom_lib->urom_worker, 0, &pass_dc_cmd);
-        while (UROM_ERR_QUEUE_EMPTY ==
-               (urom_status = urom_worker_pop_notifyq(urom_lib->urom_worker, 0, &notif))) {
-            sched_yield();
-        }
-        if ((ucc_status_t) notif->ucc.status != UCC_OK) {
-            printf("debug: pass dc create notif->status: %d\n", notif->ucc.status);
-            return notif->ucc.status;
-        }
-#endif
     ctx_cmd.ucc.context_create_cmd.base_va = ucc_mem_params.segments[0].address;
     ctx_cmd.ucc.context_create_cmd.len = ucc_mem_params.segments[0].len;
     urom_worker_push_cmdq(urom_lib->urom_worker, 0, &ctx_cmd);
@@ -264,8 +182,6 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         cl_error(cl_config->cl_lib, "failed to initialize cl_urom_sched mpool");
         return UCC_ERR_NO_MESSAGE;
     }
-
-
 
     cl_debug(cl_config->cl_lib, "initialized cl context: %p", self);
     return UCC_OK;

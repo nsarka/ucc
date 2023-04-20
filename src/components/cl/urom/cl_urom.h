@@ -37,7 +37,7 @@ typedef struct ucc_cl_urom_context_config {
 typedef struct ucc_cl_urom_lib {
     ucc_cl_lib_t             super;
     urom_service_h           urom_service;
-    urom_worker_h            urom_worker; /* F: should this be here? or lib? */
+    urom_worker_h            urom_worker;
     void                    *urom_worker_addr;
     size_t                   urom_worker_len;
     uint64_t                 worker_id;
@@ -55,15 +55,12 @@ UCC_CLASS_DECLARE(ucc_cl_urom_context_t, const ucc_base_context_params_t *,
                   const ucc_base_config_t *);
 
 typedef struct ucc_cl_urom_team {
-    /* F: i see no need for changes here; maybe remove... */
     ucc_cl_team_t            super;
-    //ucc_team_multiple_req_t *team_create_req;
     int                      team_posted;
     ucc_team_h             **teams;
     unsigned                 n_teams;
     ucc_coll_score_t        *score;
     ucc_score_map_t         *score_map;
-
 } ucc_cl_urom_team_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_team_t, ucc_base_context_t *,
                   const ucc_base_team_params_t *);
