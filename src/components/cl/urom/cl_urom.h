@@ -42,6 +42,7 @@ typedef struct ucc_cl_urom_lib {
     size_t                   urom_worker_len;
     uint64_t                 worker_id;
     int                      pass_dc_exist;
+    int                      xgvmi_enabled;
 } ucc_cl_urom_lib_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *,
                   const ucc_base_config_t *);

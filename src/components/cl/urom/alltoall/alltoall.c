@@ -28,6 +28,7 @@ static ucc_status_t ucc_cl_urom_alltoall_full_start(ucc_coll_task_t *task)
         .ucc.cmd_type      = UROM_WORKER_CMD_UCC_COLL,
         .ucc.coll_cmd.coll_args = coll_args,
         .ucc.coll_cmd.team = cl_team->teams[0],
+        .ucc.coll_cmd.use_xgvmi = cl_lib->xgvmi_enabled,
     };
 
     urom_status = urom_worker_push_cmdq(cl_lib->urom_worker, 0, &coll_cmd);
@@ -35,6 +36,7 @@ static ucc_status_t ucc_cl_urom_alltoall_full_start(ucc_coll_task_t *task)
         return UCC_ERR_NO_MESSAGE;
     }
 
+    task->status = UCC_INPROGRESS;
     cl_debug(&cl_lib->super, "pushed the collective to urom");
     return ucc_progress_queue_enqueue(ctx->super.super.ucc_context->pq, task);
 }

@@ -127,17 +127,20 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         }
 
         for (i = 0; i < ucc_mem_params.n_segments; i++) {
-            /* add in memh if added to UCC */
             domain_mem_map[i].mask    = UROM_WORKER_MEM_MAP_FIELD_BASE_VA | UROM_WORKER_MEM_MAP_FIELD_MKEY;
             domain_mem_map[i].base_va = (uint64_t)ucc_mem_params.segments[i].address;
             domain_mem_map[i].len  = ucc_mem_params.segments[i].len;
             domain_mem_map[i].mkey = tl_ctx->remote_info[i].packed_key;
             domain_mem_map[i].mkey_len = tl_ctx->remote_info[i].packed_key_len;
+            /* TODO: add in memh if added to UCC */
         }
 
         urom_domain_params.mask |= UROM_DOMAIN_PARAM_FIELD_MEM_MAP;
         urom_domain_params.mem_map.segments = domain_mem_map;
         urom_domain_params.mem_map.n_segments = ucc_mem_params.n_segments;
+        urom_lib->xgvmi_enabled = 0;//1;
+    } else {
+        urom_lib->xgvmi_enabled = 0;
     }
 
     urom_status = urom_domain_create_post(&urom_domain_params, &self->urom_domain);

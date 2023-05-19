@@ -103,6 +103,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
     }
 
     self->pass_dc_exist = 0;
+    self->xgvmi_enabled = 0;
     return UCC_OK;
 }
 
