@@ -104,12 +104,28 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
 
     self->pass_dc_exist = 0;
     self->xgvmi_enabled = 0;
+    memset(self->xgvmi_offsets, 0, sizeof(int) * 8);
     return UCC_OK;
 }
 
 UCC_CLASS_CLEANUP_FUNC(ucc_cl_urom_lib_t)
 {
+    urom_status_t urom_status;
     cl_debug(&self->super, "finalizing lib object: %p", self);
+    urom_status = urom_worker_disconnect(self->urom_worker);
+    if (urom_status != UROM_OK) {
+        cl_error(self, "Failed to disconnect to UROM Worker");
+    }
+
+    urom_status = urom_worker_destroy(self->urom_service, self->worker_id);
+    if (urom_status != UROM_OK) {
+        cl_error(self, "Failed to destroy UROM Worker");
+    }
+
+    urom_status = urom_service_disconnect(self->urom_service);
+    if (urom_status != UROM_OK) {
+        cl_error(self, "Failed to disconnect from UROM service");
+    }
 }
 
 UCC_CLASS_DEFINE(ucc_cl_urom_lib_t, ucc_cl_lib_t);

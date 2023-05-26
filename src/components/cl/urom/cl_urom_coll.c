@@ -25,7 +25,6 @@ ucc_status_t ucc_cl_urom_coll_init(ucc_base_coll_args_t *coll_args,
     ucc_cl_urom_lib_t *urom_lib = ucc_derived_of(ctx->super.super.lib, ucc_cl_urom_lib_t);
     ucc_tl_ucp_context_t *tl_ctx = ucc_derived_of(ctx->super.tl_ctxs[1], ucc_tl_ucp_context_t);
     urom_status_t urom_status;
-
     if (!urom_lib->pass_dc_exist) {
         urom_worker_cmd_t pass_dc_cmd = {
             .cmd_type = UROM_WORKER_CMD_UCC,
@@ -45,7 +44,6 @@ ucc_status_t ucc_cl_urom_coll_init(ucc_base_coll_args_t *coll_args,
         }
         urom_lib->pass_dc_exist = 1;
     }
-
     switch (coll_args->args.coll_type) {
         case UCC_COLL_TYPE_ALLTOALL:
             return ucc_cl_urom_alltoall_full_init(coll_args, team, task);

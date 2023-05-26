@@ -10,6 +10,8 @@
 
 #include "components/tl/ucp/tl_ucp.h"
 
+#define XGVMI_SIZE (1<<30)
+
 UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
                     const ucc_base_context_params_t *params,
                     const ucc_base_config_t *config)
@@ -78,7 +80,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         self->super.tl_ctxs = NULL;
         return UCC_ERR_NOT_FOUND;
     }
-    urom_lib->worker_id = params->params.oob.oob_ep;
+    urom_lib->worker_id = UROM_WORKER_ID_ANY;//params->params.oob.oob_ep;
     /* TODO: rather than UROM_WORKER_TYPE_UCC, create a value of OR'd types */
     urom_status = urom_worker_spawn(
         urom_lib->urom_service, UROM_WORKER_TYPE_UCC, urom_lib->urom_worker_addr,
@@ -117,6 +119,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
     urom_domain_params.num_workers = 1,
     urom_domain_params.domain_size = params->params.oob.n_oob_eps;
 
+    /* FIXME: REDO */
     if (params->context->params.mask & UCC_CONTEXT_PARAM_FIELD_OOB &&
         params->context->params.mask & UCC_CONTEXT_PARAM_FIELD_MEM_PARAMS) {
         domain_mem_map = ucc_calloc(ucc_mem_params.n_segments, sizeof(urom_mem_map_t),
@@ -130,8 +133,10 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
             domain_mem_map[i].mask    = UROM_WORKER_MEM_MAP_FIELD_BASE_VA | UROM_WORKER_MEM_MAP_FIELD_MKEY;
             domain_mem_map[i].base_va = (uint64_t)ucc_mem_params.segments[i].address;
             domain_mem_map[i].len  = ucc_mem_params.segments[i].len;
+
             domain_mem_map[i].mkey = tl_ctx->remote_info[i].packed_key;
             domain_mem_map[i].mkey_len = tl_ctx->remote_info[i].packed_key_len;
+
             /* TODO: add in memh if added to UCC */
         }
 
@@ -140,7 +145,60 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         urom_domain_params.mem_map.n_segments = ucc_mem_params.n_segments;
         urom_lib->xgvmi_enabled = 0;//1;
     } else {
-        urom_lib->xgvmi_enabled = 0;
+        tl_ctx = ucc_derived_of(self->super.tl_ctxs[1], ucc_tl_ucp_context_t);
+        ucp_mem_map_params_t mem_params;
+        ucp_memh_pack_params_t pack_params;
+        ucs_status_t ucs_status;
+
+        // let's allocate our own segment and use it
+        urom_lib->xgvmi_buffer = calloc(1, XGVMI_SIZE);
+        if (!urom_lib->xgvmi_buffer) {
+            return UCC_ERR_NO_MEMORY;
+        }
+        // mem_map the segment
+        mem_params.field_mask = UCP_MEM_MAP_PARAM_FIELD_ADDRESS | UCP_MEM_MAP_PARAM_FIELD_LENGTH;
+        mem_params.address = urom_lib->xgvmi_buffer;
+        mem_params.length = XGVMI_SIZE;
+
+        ucs_status = ucp_mem_map(tl_ctx->worker.ucp_context, &mem_params, &urom_lib->xgvmi_memh);
+        //FIXME: error code
+        assert(ucs_status == UCS_OK);
+
+        pack_params.field_mask = UCP_MEMH_PACK_PARAM_FIELD_FLAGS;
+        pack_params.flags = UCP_MEMH_PACK_FLAG_EXPORT;
+
+        ucs_status = ucp_memh_pack(urom_lib->xgvmi_memh, &pack_params, &urom_lib->packed_xgvmi_memh, &urom_lib->packed_xgvmi_len);
+        if (ucs_status != UCS_OK) {
+            printf("ucp_memh_pack() returned error: %s\n", ucs_status_string(ucs_status));
+            return UCC_ERR_NO_RESOURCE;
+        }
+
+        ucs_status = ucp_rkey_pack(tl_ctx->worker.ucp_context, urom_lib->xgvmi_memh, &urom_lib->packed_mkey,
+                                   &urom_lib->packed_mkey_len);
+        if (UCS_OK != ucs_status) {
+            printf("ucp_rkey_pack() returned error: %s\n",
+                   ucs_status_string(ucs_status));
+            return UCC_ERR_NO_RESOURCE;
+        }
+
+        // add to domain
+        domain_mem_map = ucc_calloc(1, sizeof(urom_mem_map_t), "urom_domain_mem_map");
+        if (!domain_mem_map) {
+            cl_error(&urom_lib->super.super, "Failed to allocate urom_mem_map");
+            return UCC_ERR_NO_MEMORY;
+        }
+
+        domain_mem_map[0].mask = UROM_WORKER_MEM_MAP_FIELD_BASE_VA | UROM_WORKER_MEM_MAP_FIELD_MKEY | UROM_WORKER_MEM_MAP_FIELD_MEMH;
+        domain_mem_map[0].base_va = (uint64_t)urom_lib->xgvmi_buffer;
+        domain_mem_map[0].len = XGVMI_SIZE;
+        domain_mem_map[0].mkey = urom_lib->packed_mkey;
+        domain_mem_map[0].mkey_len = urom_lib->packed_mkey_len;
+        domain_mem_map[0].memh = urom_lib->packed_xgvmi_memh;
+        domain_mem_map[0].memh_len = urom_lib->packed_xgvmi_len;
+        urom_domain_params.mask |= UROM_DOMAIN_PARAM_FIELD_MEM_MAP;
+        urom_domain_params.mem_map.segments = domain_mem_map;
+        urom_domain_params.mem_map.n_segments = 1;
+        urom_lib->xgvmi_enabled = 2;
     }
 
     urom_status = urom_domain_create_post(&urom_domain_params, &self->urom_domain);
@@ -164,8 +222,13 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         printf("debug: lib create notif->status: %d\n", notif->ucc.status);
         return notif->ucc.status;
     }
-    ctx_cmd.ucc.context_create_cmd.base_va = ucc_mem_params.segments[0].address;
-    ctx_cmd.ucc.context_create_cmd.len = ucc_mem_params.segments[0].len;
+    if (urom_lib->xgvmi_enabled < 2) {
+        ctx_cmd.ucc.context_create_cmd.base_va = ucc_mem_params.segments[0].address;
+        ctx_cmd.ucc.context_create_cmd.len = ucc_mem_params.segments[0].len;
+    } else {
+        ctx_cmd.ucc.context_create_cmd.base_va = urom_lib->xgvmi_buffer;
+        ctx_cmd.ucc.context_create_cmd.len = XGVMI_SIZE;
+    }
     urom_worker_push_cmdq(urom_lib->urom_worker, 0, &ctx_cmd);
     while (UROM_ERR_QUEUE_EMPTY ==
            (urom_status = urom_worker_pop_notifyq(urom_lib->urom_worker, 0, &notif))) {
@@ -176,6 +239,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
            notif->ucc.status, notif->ucc.context_create_nqe.context);
         return notif->ucc.status;
     }
+    urom_lib->urom_ucc_ctx_h = notif->ucc.context_create_nqe.context;
 
     status = ucc_mpool_init(&self->sched_mp, 0, sizeof(ucc_cl_urom_schedule_t),
                             0, UCC_CACHE_LINE_SIZE, 2, UINT_MAX,
@@ -192,12 +256,34 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
 
 UCC_CLASS_CLEANUP_FUNC(ucc_cl_urom_context_t)
 {
+    ucc_cl_urom_lib_t *urom_lib = ucc_derived_of(self->super.super.lib, ucc_cl_urom_lib_t);
+    urom_worker_cmd_t ctx_destroy_cmd = {
+        .cmd_type = UROM_WORKER_CMD_UCC,
+        .ucc.cmd_type = UROM_WORKER_CMD_UCC_CONTEXT_DESTROY,
+        .ucc.context_destroy_cmd = 
+        {
+            .context_h = urom_lib->urom_ucc_ctx_h,
+        },
+    };
+    urom_worker_notify_t *notif;
+    urom_status_t urom_status;
     int i;
+
     cl_debug(self->super.super.lib, "finalizing cl context: %p", self);
     for (i = 0; i < self->super.n_tl_ctxs; i++) {
         ucc_tl_context_put(self->super.tl_ctxs[i]);
     }
     ucc_free(self->super.tl_ctxs);
+    
+    urom_worker_push_cmdq(urom_lib->urom_worker, 0, &ctx_destroy_cmd);
+    while (UROM_ERR_QUEUE_EMPTY ==
+           (urom_status = urom_worker_pop_notifyq(urom_lib->urom_worker, 0, &notif))) {
+        sched_yield();
+    }
+    if ((ucc_status_t) notif->ucc.status != UCC_OK) {
+        printf("debug: ctx destroyed notif->status: %d\n", notif->ucc.status);
+    }
+    ucc_free(urom_lib->xgvmi_buffer);
 }
 
 UCC_CLASS_DEFINE(ucc_cl_urom_context_t, ucc_cl_context_t);

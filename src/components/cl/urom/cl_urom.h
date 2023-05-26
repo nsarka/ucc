@@ -20,6 +20,9 @@
 #define UCC_CL_UROM_DEFAULT_SCORE 20
 #endif
 
+#define OFFSET_SIZE (128*1024*1024)
+#define NUM_OFFSETS 8
+
 typedef struct ucc_cl_urom_iface {
     ucc_cl_iface_t super;
 } ucc_cl_urom_iface_t;
@@ -38,11 +41,22 @@ typedef struct ucc_cl_urom_lib {
     ucc_cl_lib_t             super;
     urom_service_h           urom_service;
     urom_worker_h            urom_worker;
+    void *                   urom_ucc_ctx_h;
     void                    *urom_worker_addr;
     size_t                   urom_worker_len;
     uint64_t                 worker_id;
     int                      pass_dc_exist;
     int                      xgvmi_enabled;
+    ucp_mem_h                xgvmi_memh;
+    void *                   packed_mkey;
+    uint64_t                 packed_mkey_len;
+    void *                   packed_xgvmi_memh;
+    uint64_t                 packed_xgvmi_len;
+    void *                   xgvmi_buffer;
+    void *                   old_dest;
+    void *                   old_src;
+    int                      xgvmi_offsets[NUM_OFFSETS];
+    int                      seq_num;
 } ucc_cl_urom_lib_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *,
                   const ucc_base_config_t *);
