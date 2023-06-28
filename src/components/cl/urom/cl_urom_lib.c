@@ -55,7 +55,7 @@ static int device_connect(ucc_cl_urom_lib_t *urom_lib, char *dev_name, urom_serv
         dev = dev->next;
     }
     if (!dev) {
-        cl_error(urom_lib, "No matching device: %s\n", dev_name);
+        cl_error(urom_lib, "No matching device:\n");
         return -1;
     }
 

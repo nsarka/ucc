@@ -76,6 +76,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         } else {
             if (strcmp(tls->names[i], "ucp") == 0) {
                 ucp_index = self->super.n_tl_ctxs;
+                urom_lib->tl_ucp_index = ucp_index;
             }
             self->super.n_tl_ctxs++;
         }

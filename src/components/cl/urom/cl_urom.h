@@ -57,6 +57,7 @@ typedef struct ucc_cl_urom_lib {
     void *                   old_src;
     int                      xgvmi_offsets[NUM_OFFSETS];
     int                      seq_num;
+    int                      tl_ucp_index; //FIXME: make this better
 } ucc_cl_urom_lib_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *,
                   const ucc_base_config_t *);
