@@ -41,7 +41,7 @@ ucc_status_t ucc_cl_urom_coll_init(ucc_base_coll_args_t *coll_args,
             sched_yield();
         }
         if ((ucc_status_t) notif->ucc.status != UCC_OK) {
-            return notif->ucc.status;
+            return (ucc_status_t) notif->ucc.status;
         }
         urom_lib->pass_dc_exist = 1;
     }

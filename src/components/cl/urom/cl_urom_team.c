@@ -42,7 +42,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_team_t, ucc_base_context_t *cl_context,
     urom_status = urom_worker_push_cmdq(urom_lib->urom_worker, 0, &team_cmd);
     if (UROM_OK != urom_status) {
         cl_error(cl_context->lib, "failed to create team");
-        return UROM_ERR_NO_MESSAGE;
+        return UCC_ERR_NO_MESSAGE;
     }
     cl_debug(cl_context->lib, "posted cl team: %p", self);
     return UCC_OK;
@@ -107,15 +107,25 @@ ucc_status_t ucc_cl_urom_team_get_scores(ucc_base_team_t   *cl_team,
     ucc_cl_urom_team_t *team = ucc_derived_of(cl_team, ucc_cl_urom_team_t);
     ucc_base_context_t  *ctx  = UCC_CL_TEAM_CTX(team);
     ucc_status_t         status;
+    ucc_coll_score_team_info_t team_info;
+
     status = ucc_coll_score_dup(team->score, score);
     if (UCC_OK != status) {
         return status;
     }
 
     if (strlen(ctx->score_str) > 0) {
-        status = ucc_coll_score_update_from_str(
-            ctx->score_str, *score, UCC_CL_TEAM_SIZE(team), NULL, cl_team,
-            UCC_CL_UROM_DEFAULT_SCORE, NULL, NULL, 0);
+        team_info.alg_fn              = NULL;
+        team_info.default_score       = UCC_CL_UROM_DEFAULT_SCORE;
+        team_info.init                = NULL;
+        team_info.num_mem_types       = 0;
+        team_info.supported_mem_types = NULL; /* all memory types supported*/
+        team_info.supported_colls     = UCC_COLL_TYPE_ALL;
+        team_info.size                = UCC_CL_TEAM_SIZE(team);
+
+        status = ucc_coll_score_update_from_str(ctx->score_str, &team_info, &team->super.super, *score);
+/*            ctx->score_str, *score, UCC_CL_TEAM_SIZE(team), NULL, cl_team,
+            UCC_CL_UROM_DEFAULT_SCORE, NULL, NULL, 0);*/
 
         /* If INVALID_PARAM - User provided incorrect input - try to proceed */
         if ((status < 0) && (status != UCC_ERR_INVALID_PARAM) &&

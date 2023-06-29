@@ -8,7 +8,6 @@
 //#include <cuda.h>
 #include "utils/arch/cuda_def.h"
 
-
 ucc_base_coll_alg_info_t
     ucc_cl_urom_alltoall_algs[UCC_CL_UROM_ALLTOALL_ALG_LAST + 1] = {
         [UCC_CL_UROM_ALLTOALL_ALG_FULL] =
@@ -56,6 +55,8 @@ static ucc_status_t ucc_cl_urom_alltoall_full_start(ucc_coll_task_t *task)
 
     if (coll_args->src.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
         // FIXME: a better way is to tweak args in urom 
+        cl_debug(&cl_lib->super, "src: %p, dest: %p, src_mem_type: %d, dst_mem_type: %d", coll_args->src.info.buffer, coll_args->dst.info.buffer, coll_args->src.info.mem_type, coll_args->dst.info.mem_type);
+        cudaStreamSynchronize(cl_lib->cuda_stream);
         coll_args->src.info.mem_type = UCC_MEMORY_TYPE_HOST;
         coll_args->dst.info.mem_type = UCC_MEMORY_TYPE_HOST;
         urom_status = urom_worker_push_cmdq(cl_lib->urom_worker, 0, &coll_cmd);
@@ -98,9 +99,9 @@ static void ucc_cl_urom_alltoall_full_progress(ucc_coll_task_t *ctask)
 
     urom_status = urom_worker_pop_notifyq(cl_lib->urom_worker, 0, &notif);
     if (UROM_ERR_QUEUE_EMPTY == urom_status) {
-        cl_debug(cl_lib, "no message on progress");
         return;
     }
+//    cl_debug(cl_lib, "message recvd from urom (%d), type %ld", urom_status, notif->notify_type);
 
     if (urom_status < 0) {
         cl_error(cl_lib, "Error in UROM");
@@ -141,7 +142,9 @@ static void ucc_cl_urom_alltoall_full_progress(ucc_coll_task_t *ctask)
                 break;
         }
         if (ctask->bargs.args.dst.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
-            cudaMemcpy(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod, cudaMemcpyHostToDevice);
+            cl_debug(cl_lib, "datatype %lu, size_mod: %lu, count: %lu dst count: %lu old_dest: %p", ctask->bargs.args.src.info.datatype, size_mod, ctask->bargs.args.src.info.count, ctask->bargs.args.dst.info.count, cl_lib->old_dest);
+            cudaMemcpyAsync(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod , cudaMemcpyHostToDevice, cl_lib->cuda_stream);
+            cudaStreamSynchronize(cl_lib->cuda_stream);
         } else {
             memcpy(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod);
             //memcpy(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod);
@@ -152,7 +155,7 @@ static void ucc_cl_urom_alltoall_full_progress(ucc_coll_task_t *ctask)
     }
     cl_debug(&cl_lib->super, "completed the collective from urom");
 
-    ctask->status = notif->ucc.status;
+    ctask->status = (ucc_status_t) notif->ucc.status;
 }  
 
 ucc_status_t ucc_cl_urom_alltoall_full_init(
@@ -199,11 +202,12 @@ ucc_status_t ucc_cl_urom_alltoall_full_init(
                 break;
         }
         //memcpy args to xgvmi buffer
-        //void * ptr = cl_lib->xgvmi_buffer + (OFFSET_SIZE * (schedule->super.seq_num % NUM_OFFSETS));
-        void *ptr = cl_lib->xgvmi_buffer;
+        void * ptr = cl_lib->xgvmi_buffer + (OFFSET_SIZE * (schedule->super.seq_num % NUM_OFFSETS));
+       // void *ptr = cl_lib->xgvmi_buffer;
 
         if (coll_args->args.src.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
-            cudaMemcpy(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod, cudaMemcpyDeviceToHost);
+    //        cudaMemcpy(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod, cudaMemcpyDeviceToHost);
+            cudaMemcpyAsync(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod, cudaMemcpyDeviceToHost, cl_lib->cuda_stream);
         } else {
             memcpy(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod);
         }
@@ -212,6 +216,7 @@ ucc_status_t ucc_cl_urom_alltoall_full_init(
         coll_args->args.src.info.buffer = ptr;
         cl_lib->old_dest = coll_args->args.dst.info.buffer;
         coll_args->args.dst.info.buffer = ptr + coll_args->args.src.info.count * size_mod;
+        cl_debug(cl_lib, "saving src (%p) and dst (%p)", cl_lib->old_src, cl_lib->old_dest);
     } 
     memcpy(&args, coll_args, sizeof(args));
     status = ucc_schedule_init(schedule, &args, team); 

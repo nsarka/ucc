@@ -213,13 +213,13 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
 
     urom_status = urom_domain_create_post(&urom_domain_params, &self->urom_domain);
     if (urom_status < UROM_OK) {
-        cl_error(&urom_lib->super.super, "failed to post urom domain: %s", urom_status_string(status));
+        cl_error(&urom_lib->super.super, "failed to post urom domain: %s", urom_status_string(urom_status));
         return UCC_ERR_NO_MESSAGE;
     }
 
     while (UROM_INPROGRESS == (urom_status = urom_domain_create_test(self->urom_domain)));
     if (urom_status < UROM_OK) {
-        cl_error(&urom_lib->super.super, "failed to create urom domain: %s", urom_status_string(status));
+        cl_error(&urom_lib->super.super, "failed to create urom domain: %s", urom_status_string(urom_status));
         return UCC_ERR_NO_MESSAGE;
     }
 
@@ -231,7 +231,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
     }
     if ((ucc_status_t) notif_lib->ucc.status != UCC_OK) {
         printf("debug: lib create notif->status: %d\n", notif_lib->ucc.status);
-        return notif_lib->ucc.status;
+        return (ucc_status_t) notif_lib->ucc.status;
     } else {
         printf("debug: lib created\n");
     }
@@ -254,7 +254,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
     if ((ucc_status_t) notif_ctx->ucc.status != UCC_OK) {
         printf("debug: ctx create notif->status: %d, ucc_context: %p\n",
            notif_ctx->ucc.status, notif_ctx->ucc.context_create_nqe.context);
-        return notif_ctx->ucc.status;
+        return (ucc_status_t) notif_ctx->ucc.status;
     }
         printf("debug: ctx create notif->status: %d, ucc_context: %p\n",
            notif_ctx->ucc.status, notif_ctx->ucc.context_create_nqe.context);
@@ -269,6 +269,8 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
         cl_error(cl_config->cl_lib, "failed to initialize cl_urom_sched mpool");
         return UCC_ERR_NO_MESSAGE;
     }
+
+    cudaStreamCreateWithFlags(&urom_lib->cuda_stream, cudaStreamNonBlocking);
 
     cl_debug(cl_config->cl_lib, "initialized cl context: %p", self);
     return UCC_OK;
@@ -304,6 +306,7 @@ UCC_CLASS_CLEANUP_FUNC(ucc_cl_urom_context_t)
         printf("debug: ctx destroyed notif->status: %d\n", notif->ucc.status);
     }
     ucc_free(urom_lib->xgvmi_buffer);
+    cudaStreamDestroy(urom_lib->cuda_stream);
 }
 
 UCC_CLASS_DEFINE(ucc_cl_urom_context_t, ucc_cl_context_t);
