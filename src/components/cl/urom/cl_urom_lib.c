@@ -81,12 +81,14 @@ static int device_connect(ucc_cl_urom_lib_t *urom_lib, char *dev_name, urom_serv
 UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
                     const ucc_base_config_t *config)
 {
-    const ucc_cl_lib_config_t *cl_config =
-        ucc_derived_of(config, ucc_cl_lib_config_t);
+    const ucc_cl_urom_lib_config_t *cl_config =
+        ucc_derived_of(config, ucc_cl_urom_lib_config_t);
 	char * device = NULL;
     int                  ret;
 
-    UCC_CLASS_CALL_SUPER_INIT(ucc_cl_lib_t, &ucc_cl_urom.super, cl_config);
+    UCC_CLASS_CALL_SUPER_INIT(ucc_cl_lib_t, &ucc_cl_urom.super, &cl_config->super);
+    memcpy(&self->cfg, cl_config, sizeof(*cl_config));
+
     cl_debug(&self->super, "initialized lib object: %p", self);
 
     /* how to know service here? */
@@ -104,7 +106,15 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *params,
 
     self->pass_dc_exist = 0;
     self->xgvmi_enabled = 0;
-    memset(self->xgvmi_offsets, 0, sizeof(int) * 8);
+/*
+    if (!self->cfg.num_buffers) {
+        self->cfg.num_buffers = 1;
+    }
+    if (!self->cfg.xgvmi_buffer_size) {
+        self->cfg.xgvmi_buffer_size = OFFSET_SIZE;
+    } 
+*/
+//    memset(self->xgvmi_offsets, 0, sizeof(int) * self->cfg.num_buffers);
     return UCC_OK;
 }
 

@@ -5,8 +5,16 @@
  */
 
 #include "alltoall.h"
-//#include <cuda.h>
-#include "utils/arch/cuda_def.h"
+//#include "utils/arch/cuda_def.h"
+
+ucc_status_t memcpy_nb(void *dst,
+              void *src,
+              ucc_memory_type_t src_mem_type,
+              ucc_memory_type_t dst_mem_type,
+              size_t n,
+              ucc_cl_urom_lib_t *cl_lib);
+
+ucc_status_t memcpy_sync(ucc_cl_urom_lib_t *cl_lib);
 
 ucc_base_coll_alg_info_t
     ucc_cl_urom_alltoall_algs[UCC_CL_UROM_ALLTOALL_ALG_LAST + 1] = {
@@ -19,21 +27,6 @@ ucc_base_coll_alg_info_t
 
 ucc_status_t ucc_cl_urom_alltoall_triggered_post_setup(ucc_coll_task_t *task)
 {
-//    ucc_cl_urom_schedule_t *schedule =
-//        ucc_derived_of(task, ucc_cl_urom_schedule_t);
-//    ucc_status_t status  = UCC_OK;
-/*
-    int          n_tasks = schedule->super.super.n_tasks;
-    int          i       = 0;
-    for (i = 0; i < n_tasks; ++i) {
-        ucc_coll_task_t *sub_task = schedule->super.super.tasks[i];
-        if (sub_task->triggered_post_setup != NULL) {
-            sub_task->ee = task->ee;
-            sub_task->triggered_post_setup(sub_task);
-        }
-    }
-*/
-//    return status;
     return UCC_OK;
 }
 
@@ -50,13 +43,13 @@ static ucc_status_t ucc_cl_urom_alltoall_full_start(ucc_coll_task_t *task)
         .ucc.cmd_type      = UROM_WORKER_CMD_UCC_COLL,
         .ucc.coll_cmd.coll_args = coll_args,
         .ucc.coll_cmd.team = cl_team->teams[0],
-        .ucc.coll_cmd.use_xgvmi = (cl_lib->xgvmi_enabled > 0),
+        .ucc.coll_cmd.use_xgvmi = cl_lib->xgvmi_enabled,
     };
 
     if (coll_args->src.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
         // FIXME: a better way is to tweak args in urom 
         cl_debug(&cl_lib->super, "src: %p, dest: %p, src_mem_type: %d, dst_mem_type: %d", coll_args->src.info.buffer, coll_args->dst.info.buffer, coll_args->src.info.mem_type, coll_args->dst.info.mem_type);
-        cudaStreamSynchronize(cl_lib->cuda_stream);
+        memcpy_sync(cl_lib);
         coll_args->src.info.mem_type = UCC_MEMORY_TYPE_HOST;
         coll_args->dst.info.mem_type = UCC_MEMORY_TYPE_HOST;
         urom_status = urom_worker_push_cmdq(cl_lib->urom_worker, 0, &coll_cmd);
@@ -101,7 +94,6 @@ static void ucc_cl_urom_alltoall_full_progress(ucc_coll_task_t *ctask)
     if (UROM_ERR_QUEUE_EMPTY == urom_status) {
         return;
     }
-//    cl_debug(cl_lib, "message recvd from urom (%d), type %ld", urom_status, notif->notify_type);
 
     if (urom_status < 0) {
         cl_error(cl_lib, "Error in UROM");
@@ -114,7 +106,7 @@ static void ucc_cl_urom_alltoall_full_progress(ucc_coll_task_t *ctask)
         return;
     }
 
-    if (cl_lib->xgvmi_enabled == 2) {
+    if (1 || cl_lib->xgvmi_enabled) {
         size_t size_mod = 8;
 
         switch(ctask->bargs.args.src.info.datatype) {
@@ -141,15 +133,9 @@ static void ucc_cl_urom_alltoall_full_progress(ucc_coll_task_t *ctask)
                 printf("**** SCALAR UNKNOWN: %ld\n", ctask->bargs.args.src.info.datatype);
                 break;
         }
-        if (ctask->bargs.args.dst.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
-            cl_debug(cl_lib, "datatype %lu, size_mod: %lu, count: %lu dst count: %lu old_dest: %p", ctask->bargs.args.src.info.datatype, size_mod, ctask->bargs.args.src.info.count, ctask->bargs.args.dst.info.count, cl_lib->old_dest);
-            cudaMemcpyAsync(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod , cudaMemcpyHostToDevice, cl_lib->cuda_stream);
-            cudaStreamSynchronize(cl_lib->cuda_stream);
-        } else {
-            memcpy(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod);
-            //memcpy(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod);
-        }
-        
+        memcpy_nb(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod, ctask->bargs.args.src.info.mem_type, ctask->bargs.args.dst.info.mem_type, cl_lib);
+        memcpy_sync(cl_lib);
+
         ctask->bargs.args.dst.info.buffer = cl_lib->old_dest;
         ctask->bargs.args.src.info.buffer = cl_lib->old_src;
     }
@@ -175,7 +161,7 @@ ucc_status_t ucc_cl_urom_alltoall_full_init(
         return UCC_ERR_NO_MEMORY;
     }
     schedule = &cl_schedule->super.super;
-    if (cl_lib->xgvmi_enabled == 2) {
+    if (1 || cl_lib->xgvmi_enabled) {
         size_t size_mod = 8;
         switch(coll_args->args.src.info.datatype) {
             case UCC_DT_INT8:
@@ -202,16 +188,9 @@ ucc_status_t ucc_cl_urom_alltoall_full_init(
                 break;
         }
         //memcpy args to xgvmi buffer
-        void * ptr = cl_lib->xgvmi_buffer + (OFFSET_SIZE * (schedule->super.seq_num % NUM_OFFSETS));
-       // void *ptr = cl_lib->xgvmi_buffer;
+        void * ptr = cl_lib->xgvmi_buffer;// + (OFFSET_SIZE * (schedule->super.seq_num % NUM_OFFSETS));
 
-        if (coll_args->args.src.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
-    //        cudaMemcpy(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod, cudaMemcpyDeviceToHost);
-            cudaMemcpyAsync(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod, cudaMemcpyDeviceToHost, cl_lib->cuda_stream);
-        } else {
-            memcpy(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod);
-        }
-
+        memcpy_nb(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod, coll_args->args.src.info.mem_type, coll_args->args.dst.info.mem_type, cl_lib);
         cl_lib->old_src = coll_args->args.src.info.buffer;
         coll_args->args.src.info.buffer = ptr;
         cl_lib->old_dest = coll_args->args.dst.info.buffer;

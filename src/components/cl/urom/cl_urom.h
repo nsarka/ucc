@@ -12,7 +12,6 @@
 #include "coll_score/ucc_coll_score.h"
 #include "utils/ucc_mpool.h"
 
-
 #include <urom/api/urom.h>
 #include <urom/api/urom_ucc.h>
 
@@ -33,6 +32,15 @@ extern ucc_cl_urom_iface_t ucc_cl_urom;
 
 typedef struct ucc_cl_urom_lib_config {
     ucc_cl_lib_config_t super;
+    /*
+     * FIXME:
+     * what do we need:
+     *  buffer size
+     *  number of buffers
+     */
+    uint32_t num_buffers;
+    uint32_t xgvmi_buffer_size;
+    uint32_t use_xgvmi;
 } ucc_cl_urom_lib_config_t;
 
 typedef struct ucc_cl_urom_context_config {
@@ -41,6 +49,7 @@ typedef struct ucc_cl_urom_context_config {
 
 typedef struct ucc_cl_urom_lib {
     ucc_cl_lib_t             super;
+    ucc_cl_urom_lib_config_t cfg;
     urom_service_h           urom_service;
     urom_worker_h            urom_worker;
     void *                   urom_ucc_ctx_h;
@@ -55,12 +64,17 @@ typedef struct ucc_cl_urom_lib {
     void *                   packed_xgvmi_memh;
     uint64_t                 packed_xgvmi_len;
     void *                   xgvmi_buffer;
+    size_t                   xgvmi_size;
     void *                   old_dest;
     void *                   old_src;
     int                      xgvmi_offsets[NUM_OFFSETS];
     int                      seq_num;
     int                      tl_ucp_index; //FIXME: make this better
+    //void *                   cuda_stream;
+    #if HAVE_CUDA
     cudaStream_t             cuda_stream;
+    #endif
+    ucc_rank_t               ctx_rank; //FIXME: this is not right
 } ucc_cl_urom_lib_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_lib_t, const ucc_base_lib_params_t *,
                   const ucc_base_config_t *);

@@ -66,8 +66,8 @@ ucc_status_t ucc_cl_urom_team_create_test(ucc_base_team_t *cl_team)
     ucc_cl_urom_team_t    *team = ucc_derived_of(cl_team, ucc_cl_urom_team_t);
     ucc_cl_urom_context_t *ctx  = UCC_CL_UROM_TEAM_CTX(team);
     ucc_cl_urom_lib_t *urom_lib = ucc_derived_of(ctx->super.super.lib, ucc_cl_urom_lib_t);
-    ucc_memory_type_t           mem_types[UCC_MEMORY_TYPE_LAST] = {1,1,0};
-    int mt_n = 1;
+    ucc_memory_type_t           mem_types[2] = {UCC_MEMORY_TYPE_HOST,UCC_MEMORY_TYPE_CUDA};
+    int mt_n = 2;
     ucc_coll_score_t       *score = NULL;
     urom_status_t           urom_status;
     ucc_status_t            ucc_status;

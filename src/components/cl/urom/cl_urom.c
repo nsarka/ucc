@@ -18,6 +18,22 @@ ucc_status_t ucc_cl_urom_get_lib_properties(ucc_base_lib_properties_t *prop);
 static ucc_config_field_t ucc_cl_urom_lib_config_table[] = {
     {"", "", NULL, ucc_offsetof(ucc_cl_urom_lib_config_t, super),
      UCC_CONFIG_TYPE_TABLE(ucc_cl_lib_config_table)},
+
+    {"NUM_SEGMENTS", "1",
+     "Number of memory segments to be used for XGVMI",
+     ucc_offsetof(ucc_cl_urom_lib_config_t, num_buffers),
+     UCC_CONFIG_TYPE_UINT},
+
+    {"SEGMENT_SIZE", "1",
+     "Segment size used for XGVMI",
+     ucc_offsetof(ucc_cl_urom_lib_config_t, xgvmi_buffer_size),
+     UCC_CONFIG_TYPE_MEMUNITS},
+ 
+    {"USE_XGVMI", "0",
+     "Enable use of XGVMI for collective operations",
+     ucc_offsetof(ucc_cl_urom_lib_config_t, use_xgvmi),
+     UCC_CONFIG_TYPE_UINT},
+
     {NULL}};
 
 static ucs_config_field_t ucc_cl_urom_context_config_table[] = {

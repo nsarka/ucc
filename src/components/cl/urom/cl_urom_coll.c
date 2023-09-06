@@ -30,6 +30,7 @@ ucc_status_t ucc_cl_urom_coll_init(ucc_base_coll_args_t *coll_args,
         urom_worker_cmd_t pass_dc_cmd = {
             .cmd_type = UROM_WORKER_CMD_UCC,
             .ucc.cmd_type = UROM_WORKER_CMD_CREATE_PASSIVE_DATA_CHANNEL,
+            .ucc.dpu_worker_id = urom_lib->ctx_rank,
             .ucc.pass_dc_create_cmd.ucp_addr = tl_ctx->worker.worker_address,
             .ucc.pass_dc_create_cmd.addr_len = tl_ctx->worker.ucp_addrlen,
         };

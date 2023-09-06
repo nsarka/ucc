@@ -13,6 +13,7 @@ sources =             \
 	cl_urom_context.c \
 	cl_urom_team.c    \
 	cl_urom_coll.c    \
+    cl_urom_memcpy.c  \
 	$(alltoall)
 
 module_LTLIBRARIES         = libucc_cl_urom.la
@@ -20,6 +21,6 @@ libucc_cl_urom_la_SOURCES  = $(sources)
 libucc_cl_urom_la_CPPFLAGS = $(AM_CPPFLAGS) $(BASE_CPPFLAGS) $(UROM_CPPFLAGS) $(CUDA_CPPFLAGS)
 libucc_cl_urom_la_CFLAGS   = $(BASE_CFLAGS)
 libucc_cl_urom_la_LDFLAGS  = -version-info $(SOVERSION) --as-needed $(UROM_LDFLAGS) $(CUDA_LDFLAGS)
-libucc_cl_urom_la_LIBADD   = $(UROM_LIBADD) $(UCC_TOP_BUILDDIR)/src/libucc.la 
+libucc_cl_urom_la_LIBADD   = $(UROM_LIBADD) $(CUDA_LIBS) $(UCC_TOP_BUILDDIR)/src/libucc.la 
 
 include $(top_srcdir)/config/module.am
