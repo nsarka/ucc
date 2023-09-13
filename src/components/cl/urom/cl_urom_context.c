@@ -43,6 +43,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
             .size = params->params.oob.n_oob_eps,
         },
     };
+
     ucc_tl_ucp_context_t *tl_ctx;
     ucc_status_t status;
     urom_status_t urom_status;
@@ -130,77 +131,76 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
     urom_domain_params.workers = &urom_lib->urom_worker;
     urom_domain_params.num_workers = 1,
     urom_domain_params.domain_size = params->params.oob.n_oob_eps;
+    urom_lib->req_mc = 1; /* requires a memcpy */
 
-    printf("my rank %d with size %ld and worker id %ld\n", urom_domain_params.oob.oob_index, urom_domain_params.domain_size, urom_domain_params.domain_worker_id);
-
-/*
     if (params->context->params.mask & UCC_CONTEXT_PARAM_FIELD_OOB &&
         params->context->params.mask & UCC_CONTEXT_PARAM_FIELD_MEM_PARAMS) {
-        n_segments = ucc_mem_params.n_segments;
-    }
-*/
-    /* FIXME: rename xgvmi_buffer -> scratch_buffer */
-    if (urom_lib->cfg.use_xgvmi || n_segments == 0) {
-        n_segments += 1; //xgvmi segment
-        domain_mem_map = ucc_calloc(n_segments, sizeof(urom_mem_map_t),
-                                    "urom_domain_mem_map");
-        if (!domain_mem_map) {
-            cl_error(&urom_lib->super.super, "Failed to allocate urom_mem_map");
-            return UCC_ERR_NO_MEMORY;
+        
+        /* remap the segments for xgvmi if enabled */
+        urom_lib->xgvmi_buffer = ucc_mem_params.segments[0].address;
+        urom_lib->xgvmi_size = ucc_mem_params.segments[0].len;
+        if (urom_lib->cfg.use_xgvmi) {
+            urom_lib->req_mc = 0;
         }
-
-        /* add xgvmi buffer */
+    } else {
         urom_lib->xgvmi_size = urom_lib->cfg.num_buffers * urom_lib->cfg.xgvmi_buffer_size;
         urom_lib->xgvmi_buffer = ucc_calloc(1, urom_lib->xgvmi_size, "xgvmi buffer");
         if (!urom_lib->xgvmi_buffer) {
             return UCC_ERR_NO_MEMORY;
         }
-        // mem_map the segment
-        mem_params.field_mask = UCP_MEM_MAP_PARAM_FIELD_ADDRESS | UCP_MEM_MAP_PARAM_FIELD_LENGTH;
-        mem_params.address = urom_lib->xgvmi_buffer;
-        mem_params.length = urom_lib->xgvmi_size;
+    }
+    n_segments = 1; /* FIXME: just for now */
 
-        ucs_status = ucp_mem_map(tl_ctx->worker.ucp_context, &mem_params, &urom_lib->xgvmi_memh);
-        assert(ucs_status == UCS_OK);
+    domain_mem_map = ucc_calloc(n_segments, sizeof(urom_mem_map_t),
+                                "urom_domain_mem_map");
+    if (!domain_mem_map) {
+        cl_error(&urom_lib->super.super, "Failed to allocate urom_mem_map");
+        return UCC_ERR_NO_MEMORY;
+    }
 
-        if (urom_lib->cfg.use_xgvmi) {
-            pack_params.field_mask = UCP_MEMH_PACK_PARAM_FIELD_FLAGS;
-            pack_params.flags = UCP_MEMH_PACK_FLAG_EXPORT;
+    // mem_map the segment
+    mem_params.field_mask = UCP_MEM_MAP_PARAM_FIELD_ADDRESS | UCP_MEM_MAP_PARAM_FIELD_LENGTH;
+    mem_params.address = urom_lib->xgvmi_buffer;
+    mem_params.length = urom_lib->xgvmi_size;
 
-            ucs_status = ucp_memh_pack(urom_lib->xgvmi_memh, &pack_params, &urom_lib->packed_xgvmi_memh, &urom_lib->packed_xgvmi_len);
-            if (ucs_status != UCS_OK) {
-                cl_error(&urom_lib->super.super, "ucp_memh_pack() returned error: %s", ucs_status_string(ucs_status));
-                cl_error(&urom_lib->super.super, "xgvmi will be disabled");
-                xgvmi_level = 0;
-            }
+    ucs_status = ucp_mem_map(tl_ctx->worker.ucp_context, &mem_params, &urom_lib->xgvmi_memh);
+    assert(ucs_status == UCS_OK);
+
+    if (urom_lib->cfg.use_xgvmi) {
+        pack_params.field_mask = UCP_MEMH_PACK_PARAM_FIELD_FLAGS;
+        pack_params.flags = UCP_MEMH_PACK_FLAG_EXPORT;
+
+        ucs_status = ucp_memh_pack(urom_lib->xgvmi_memh, &pack_params, &urom_lib->packed_xgvmi_memh, &urom_lib->packed_xgvmi_len);
+        if (ucs_status != UCS_OK) {
+            cl_error(&urom_lib->super.super, "ucp_memh_pack() returned error: %s", ucs_status_string(ucs_status));
+            cl_error(&urom_lib->super.super, "xgvmi will be disabled");
+            xgvmi_level = 0;
+        } else {
             xgvmi_level = 1;
         }
-
-        ucs_status = ucp_rkey_pack(tl_ctx->worker.ucp_context, urom_lib->xgvmi_memh, &urom_lib->packed_mkey,
-                                   &urom_lib->packed_mkey_len);
-        if (UCS_OK != ucs_status) {
-            printf("ucp_rkey_pack() returned error: %s\n",
-                   ucs_status_string(ucs_status));
-            return UCC_ERR_NO_RESOURCE;
-        }
-
-        domain_mem_map[n_segments - 1].mask = UROM_WORKER_MEM_MAP_FIELD_BASE_VA | UROM_WORKER_MEM_MAP_FIELD_MKEY;
-        domain_mem_map[n_segments - 1].base_va = (uint64_t)urom_lib->xgvmi_buffer;
-        domain_mem_map[n_segments - 1].len = urom_lib->xgvmi_size;
-        domain_mem_map[n_segments - 1].mkey = urom_lib->packed_mkey;
-        domain_mem_map[n_segments - 1].mkey_len = urom_lib->packed_mkey_len;
-        if (1 || xgvmi_level) {
-            domain_mem_map[n_segments - 1].mask |= UROM_WORKER_MEM_MAP_FIELD_MEMH;
-            domain_mem_map[n_segments - 1].memh = urom_lib->packed_xgvmi_memh;
-            domain_mem_map[n_segments - 1].memh_len = urom_lib->packed_xgvmi_len;
-        }
-        urom_domain_params.mask |= UROM_DOMAIN_PARAM_FIELD_MEM_MAP;
-        urom_domain_params.mem_map.segments = domain_mem_map;
-        urom_domain_params.mem_map.n_segments = 1;
-        urom_lib->xgvmi_enabled = 1; //FIXME: for now, just use xgvmi buffers
-    } else { /* FIXME: shouldn't need an else here */
-        urom_lib->xgvmi_enabled = 0;
     }
+
+    ucs_status = ucp_rkey_pack(tl_ctx->worker.ucp_context, urom_lib->xgvmi_memh, &urom_lib->packed_mkey,
+                               &urom_lib->packed_mkey_len);
+    if (UCS_OK != ucs_status) {
+        printf("ucp_rkey_pack() returned error: %s\n",
+               ucs_status_string(ucs_status));
+        return UCC_ERR_NO_RESOURCE;
+    }
+    domain_mem_map[0].mask = UROM_WORKER_MEM_MAP_FIELD_BASE_VA | UROM_WORKER_MEM_MAP_FIELD_MKEY;
+    domain_mem_map[0].base_va = (uint64_t)urom_lib->xgvmi_buffer;
+    domain_mem_map[0].len = urom_lib->xgvmi_size;
+    domain_mem_map[0].mkey = urom_lib->packed_mkey;
+    domain_mem_map[0].mkey_len = urom_lib->packed_mkey_len;
+    if (xgvmi_level) {
+        domain_mem_map[0].mask |= UROM_WORKER_MEM_MAP_FIELD_MEMH;
+        domain_mem_map[0].memh = urom_lib->packed_xgvmi_memh;
+        domain_mem_map[0].memh_len = urom_lib->packed_xgvmi_len;
+    }
+    urom_domain_params.mask |= UROM_DOMAIN_PARAM_FIELD_MEM_MAP;
+    urom_domain_params.mem_map.segments = domain_mem_map;
+    urom_domain_params.mem_map.n_segments = 1;
+    urom_lib->xgvmi_enabled = xgvmi_level; //FIXME: for now, just use xgvmi buffers
 
     urom_status = urom_domain_create_post(&urom_domain_params, &self->urom_domain);
     if (urom_status < UROM_OK) {
@@ -292,7 +292,9 @@ UCC_CLASS_CLEANUP_FUNC(ucc_cl_urom_context_t)
            (urom_status = urom_worker_pop_notifyq(urom_lib->urom_worker, 0, &notif))) {
         sched_yield();
     }
-    ucc_free(urom_lib->xgvmi_buffer);
+    if (urom_lib->req_mc) {
+        ucc_free(urom_lib->xgvmi_buffer);
+    }
 
     cudaStreamDestroy(urom_lib->cuda_stream);
 }

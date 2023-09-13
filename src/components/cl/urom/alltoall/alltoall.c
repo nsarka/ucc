@@ -21,6 +21,37 @@ ucc_status_t ucc_cl_urom_alltoall_triggered_post_setup(ucc_coll_task_t *task)
     return UCC_OK;
 }
 
+static size_t dt_size(ucc_datatype_t ucc_dt)
+{
+    size_t size_mod = 8;
+
+    switch(ucc_dt) {
+        case UCC_DT_INT8:
+        case UCC_DT_UINT8:
+            size_mod = sizeof(char);
+            break;
+        case UCC_DT_INT32:
+        case UCC_DT_UINT32:
+        case UCC_DT_FLOAT32:
+            size_mod = sizeof(int);
+            break;
+        case UCC_DT_INT64:
+        case UCC_DT_UINT64:
+        case UCC_DT_FLOAT64:
+            size_mod = sizeof(uint64_t);
+            break;
+        case UCC_DT_INT128:
+        case UCC_DT_UINT128:
+        case UCC_DT_FLOAT128:
+            size_mod = sizeof(__int128_t);
+            break;
+        default:
+            break;
+    }
+
+    return size_mod;
+}
+
 static ucc_status_t ucc_cl_urom_alltoall_full_start(ucc_coll_task_t *task)
 {
     ucc_cl_urom_team_t     *cl_team = ucc_derived_of(task->team, ucc_cl_urom_team_t);
@@ -37,7 +68,14 @@ static ucc_status_t ucc_cl_urom_alltoall_full_start(ucc_coll_task_t *task)
         .ucc.coll_cmd.use_xgvmi = cl_lib->xgvmi_enabled,
     };
 
-    if (coll_args->src.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
+    if (coll_args->src.info.mem_type != UCC_MEMORY_TYPE_CUDA) {
+        urom_status = urom_worker_push_cmdq(cl_lib->urom_worker, 0, &coll_cmd);
+        if (UROM_OK != urom_status) {
+            cl_debug(&cl_lib->super, "failed to push collective to urom");
+            return UCC_ERR_NO_MESSAGE;
+        }
+    } else {
+#if HAVE_CUDA  
         // FIXME: a better way is to tweak args in urom 
         cudaStreamSynchronize(cl_lib->cuda_stream);
 
@@ -50,12 +88,10 @@ static ucc_status_t ucc_cl_urom_alltoall_full_start(ucc_coll_task_t *task)
         }
         coll_args->src.info.mem_type = UCC_MEMORY_TYPE_CUDA;
         coll_args->dst.info.mem_type = UCC_MEMORY_TYPE_CUDA;
-    } else {
-        urom_status = urom_worker_push_cmdq(cl_lib->urom_worker, 0, &coll_cmd);
-        if (UROM_OK != urom_status) {
-            cl_debug(&cl_lib->super, "failed to push collective to urom");
-            return UCC_ERR_NO_MESSAGE;
-        }
+#else
+        cl_error(&cl_lib->super, "attempting to use CUDA without CUDA support");
+        return UCC_ERR_NO_RESOURCE;
+#endif
     }
     task->status = UCC_INPROGRESS;
     cl_debug(&cl_lib->super, "pushed the collective to urom");
@@ -97,43 +133,25 @@ static void ucc_cl_urom_alltoall_full_progress(ucc_coll_task_t *ctask)
         return;
     }
 
-    if (1 || cl_lib->xgvmi_enabled) {
-        size_t size_mod = 8;
+    if (cl_lib->xgvmi_enabled) {
+        size_t size_mod = dt_size(ctask->bargs.args.dst.info.datatype);
 
-        switch(ctask->bargs.args.src.info.datatype) {
-            case UCC_DT_INT8:
-            case UCC_DT_UINT8:
-                size_mod = sizeof(char);
-                break;
-            case UCC_DT_INT32:
-            case UCC_DT_UINT32:
-            case UCC_DT_FLOAT32:
-                size_mod = sizeof(int);
-                break;
-            case UCC_DT_INT64:
-            case UCC_DT_UINT64:
-            case UCC_DT_FLOAT64:
-                size_mod = sizeof(uint64_t);
-                break;
-            case UCC_DT_INT128:
-            case UCC_DT_UINT128:
-            case UCC_DT_FLOAT128:
-                size_mod = sizeof(__int128_t);
-                break;
-            default:
-                printf("**** SCALAR UNKNOWN: %ld\n", ctask->bargs.args.src.info.datatype);
-                break;
+        if (cl_lib->req_mc) {
+            if (ctask->bargs.args.dst.info.mem_type != UCC_MEMORY_TYPE_CUDA) {
+                memcpy(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod);
+            } else {
+    #if HAVE_CUDA
+                cudaMemcpyAsync(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod , cudaMemcpyHostToDevice, cl_lib->cuda_stream);
+                cudaStreamSynchronize(cl_lib->cuda_stream);
+    #else
+                cl_error(&cl_lib->super, "attempting to use CUDA without CUDA support");
+                return UCC_ERR_NO_RESOURCE;
+    #endif
+            }
+            ctask->bargs.args.dst.info.buffer = cl_lib->old_dest;
+            ctask->bargs.args.src.info.buffer = cl_lib->old_src;
         }
 
-        if (ctask->bargs.args.dst.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
-            cudaMemcpyAsync(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod , cudaMemcpyHostToDevice, cl_lib->cuda_stream);
-            cudaStreamSynchronize(cl_lib->cuda_stream);
-        } else {
-            memcpy(cl_lib->old_dest, ctask->bargs.args.dst.info.buffer, ctask->bargs.args.src.info.count * size_mod);
-        }
-
-        ctask->bargs.args.dst.info.buffer = cl_lib->old_dest;
-        ctask->bargs.args.src.info.buffer = cl_lib->old_src;
     }
     cl_debug(&cl_lib->super, "completed the collective from urom");
 
@@ -157,44 +175,26 @@ ucc_status_t ucc_cl_urom_alltoall_full_init(
         return UCC_ERR_NO_MEMORY;
     }
     schedule = &cl_schedule->super.super;
-    if (1 || cl_lib->xgvmi_enabled) {
-        size_t size_mod = 8;
-        switch(coll_args->args.src.info.datatype) {
-            case UCC_DT_INT8:
-            case UCC_DT_UINT8:
-                size_mod = sizeof(char);
-                break;
-            case UCC_DT_INT32:
-            case UCC_DT_UINT32:
-            case UCC_DT_FLOAT32:
-                size_mod = sizeof(int);
-                break;
-            case UCC_DT_INT64:
-            case UCC_DT_UINT64:
-            case UCC_DT_FLOAT64:
-                size_mod = sizeof(uint64_t);
-                break;
-            case UCC_DT_INT128:
-            case UCC_DT_UINT128:
-            case UCC_DT_FLOAT128:
-                size_mod = sizeof(__int128_t);
-                break;
-            default:
-                printf("**** SCALAR UNKNOWN: %ld\n", coll_args->args.src.info.datatype);
-                break;
-        }
-        //memcpy args to xgvmi buffer
-        void * ptr = cl_lib->xgvmi_buffer + (cl_lib->cfg.xgvmi_buffer_size * (schedule->super.seq_num % cl_lib->cfg.num_buffers));
-        if (coll_args->args.src.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
-            cudaMemcpyAsync(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod, cudaMemcpyDeviceToHost, cl_lib->cuda_stream);
-        } else {
-            memcpy(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod);
-        }
-
-        cl_lib->old_src = coll_args->args.src.info.buffer;
-        coll_args->args.src.info.buffer = ptr;
-        cl_lib->old_dest = coll_args->args.dst.info.buffer;
-        coll_args->args.dst.info.buffer = ptr + coll_args->args.src.info.count * size_mod;
+    if (cl_lib->xgvmi_enabled) {
+        size_t size_mod = dt_size(coll_args->args.src.info.datatype);
+        if (cl_lib->req_mc) {
+            //memcpy args to xgvmi buffer
+            void * ptr = cl_lib->xgvmi_buffer + (cl_lib->cfg.xgvmi_buffer_size * (schedule->super.seq_num % cl_lib->cfg.num_buffers));
+            if (coll_args->args.src.info.mem_type != UCC_MEMORY_TYPE_CUDA) {
+                memcpy(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod);
+            } else {
+    #if HAVE_CUDA
+                cudaMemcpyAsync(ptr, coll_args->args.src.info.buffer, coll_args->args.src.info.count * size_mod, cudaMemcpyDeviceToHost, cl_lib->cuda_stream);
+    #else
+                cl_error(&cl_lib->super, "attempting to use CUDA without CUDA support");
+                return UCC_ERR_NO_RESOURCE;
+    #endif
+            }
+            cl_lib->old_src = coll_args->args.src.info.buffer;
+            coll_args->args.src.info.buffer = ptr;
+            cl_lib->old_dest = coll_args->args.dst.info.buffer;
+            coll_args->args.dst.info.buffer = ptr + coll_args->args.src.info.count * size_mod;
+        } 
     } 
     memcpy(&args, coll_args, sizeof(args));
     status = ucc_schedule_init(schedule, &args, team); 

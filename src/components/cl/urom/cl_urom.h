@@ -65,6 +65,7 @@ typedef struct ucc_cl_urom_lib {
     uint64_t                 packed_xgvmi_len;
     void *                   xgvmi_buffer;
     size_t                   xgvmi_size;
+    int                      req_mc;
     void *                   old_dest;
     void *                   old_src;
     int                      xgvmi_offsets[NUM_OFFSETS];
