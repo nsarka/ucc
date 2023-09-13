@@ -9,15 +9,11 @@
 
 #include <string.h>
 
-#include "config.h"
-
-#if HAVE_CUDA
 #include "utils/arch/cuda_def.h"
-#endif
 
 ucc_status_t memcpy_init(ucc_cl_urom_lib_t *cl_lib)
 {
-#if HAVE_CUDA
+#if 0 
     cudaStreamCreateWithFlags(&cl_lib->cuda_stream, cudaStreamNonBlocking);
 #endif
     return UCC_OK;
@@ -38,28 +34,31 @@ ucc_status_t memcpy_nb(void *dst,
     }
 #else 
     /* copy from host to cuda */
-    if ((src_mem_type == UCC_MEMORY_TYPE_HOST ||
-         src_mem_type == UCC_MEMORY_TYPE_UNKNOWN) &&
-         dst_mem_type == UCC_MEMORY_TYPE_CUDA) {
+    if (dst_mem_type == UCC_MEMORY_TYPE_CUDA) {
+        printf("IM HOST->CUDA");
+#if 0
         cudaMemcpyAsync(dst, src, n, cudaMemcpyHostToDevice, cl_lib->cuda_stream);
+#endif
         return UCC_OK;
-    } else if (src_mem_type == UCC_MEMORY_TYPE_CUDA &&
-               (dst_mem_type == UCC_MEMORY_TYPE_HOST ||
-                dst_mem_type == UCC_MEMORY_TYPE_UNKNOWN)) {
+    } else if (src_mem_type == UCC_MEMORY_TYPE_CUDA) {
         /* copy from cuda to host */
+        printf("IM CUDA->HOST");
+#if 0
         cudaMemcpyAsync(dst, src, n, cudaMemcpyDeviceToHost, cl_lib->cuda_stream);
+#endif
         return UCC_OK;
     }
 #endif
-    
-    /* copy from host to host */
-    memcpy(dst, src, n);
+    else {
+        /* copy from host to host */
+        memcpy(dst, src, n);
+    }
     return UCC_OK;
 }
 
 ucc_status_t memcpy_sync(ucc_cl_urom_lib_t *cl_lib)
 {
-#if HAVE_CUDA
+#if 0
     cudaStreamSynchronize(cl_lib->cuda_stream);
 #endif
     return UCC_OK;
