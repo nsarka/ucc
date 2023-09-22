@@ -18,7 +18,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_team_t, ucc_base_context_t *cl_context,
     ucc_status_t            status;
     urom_worker_cmd_t team_cmd = {
         .cmd_type = UROM_WORKER_CMD_UCC,
-        .ucc.dpu_worker_id = params->rank,
+        .ucc.dpu_worker_id = ctx->ctx_rank,
         .ucc.cmd_type = UROM_WORKER_CMD_UCC_TEAM_CREATE,
         /* FIXME: proper way: use ec map.. for now assume linear */
         .ucc.team_create_cmd = 
@@ -39,7 +39,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_team_t, ucc_base_context_t *cl_context,
     self->n_teams = 0;
     self->score_map = NULL;
    
-    urom_status = urom_worker_push_cmdq(urom_lib->urom_worker, 0, &team_cmd);
+    urom_status = urom_worker_push_cmdq(urom_lib->urom_ctx.urom_worker, 0, &team_cmd);
     if (UROM_OK != urom_status) {
         cl_error(cl_context->lib, "failed to create team");
         return UCC_ERR_NO_MESSAGE;
@@ -73,7 +73,7 @@ ucc_status_t ucc_cl_urom_team_create_test(ucc_base_team_t *cl_team)
     ucc_status_t            ucc_status;
     urom_worker_notify_t   *notif;
 
-    urom_status = urom_worker_pop_notifyq(urom_lib->urom_worker, 0, &notif);
+    urom_status = urom_worker_pop_notifyq(urom_lib->urom_ctx.urom_worker, 0, &notif);
     if (UROM_ERR_QUEUE_EMPTY != urom_status) {
         if (urom_status == UROM_OK) {
             if (notif->ucc.status == (urom_status_t)UCC_OK) {
@@ -124,8 +124,6 @@ ucc_status_t ucc_cl_urom_team_get_scores(ucc_base_team_t   *cl_team,
         team_info.size                = UCC_CL_TEAM_SIZE(team);
 
         status = ucc_coll_score_update_from_str(ctx->score_str, &team_info, &team->super.super, *score);
-/*            ctx->score_str, *score, UCC_CL_TEAM_SIZE(team), NULL, cl_team,
-            UCC_CL_UROM_DEFAULT_SCORE, NULL, NULL, 0);*/
 
         /* If INVALID_PARAM - User provided incorrect input - try to proceed */
         if ((status < 0) && (status != UCC_ERR_INVALID_PARAM) &&
