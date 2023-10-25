@@ -86,6 +86,46 @@ enum ucc_tl_ucp_task_flags {
     UCC_TL_UCP_TASK_FLAG_SUBSET = UCC_BIT(0),
 };
 
+typedef enum ucc_tl_ucp_allreduce_sw_buf_state_t {
+    FREE,
+    RECVING,
+    REDUCING,
+    REDUCED,
+    SENDING,
+    IDLE,
+} ucc_tl_ucp_allreduce_sw_buf_state_t;
+
+typedef struct ucc_tl_ucp_allreduce_sw_buf_t {
+    void                                  *buf;
+    ucc_tl_ucp_allreduce_sw_buf_state_t    state;
+    ucs_status_ptr_t                       ucp_req;
+    size_t                                 count;
+    size_t                                 bytes;
+} ucc_tl_ucp_allreduce_sw_buf_t;
+
+typedef struct ucc_tl_ucp_allreduce_sw_pipeline_t {
+    ucc_tl_ucp_allreduce_sw_buf_t  accbuf;
+    ucc_tl_ucp_allreduce_sw_buf_t *getbuf;
+    ucs_status_ptr_t              *put_requests;
+    size_t                         buffer_size;
+    size_t                         num_buffers;
+    size_t                         avail_buffs;
+    size_t                         my_count;
+    size_t                         my_offset;
+    size_t                         count_issued;
+    size_t                         count_received;
+    size_t                         count_reduced;
+    size_t                         count_serviced;
+    size_t                         get_idx;
+    size_t                         red_idx;
+    int                            src_rank;
+    int                            dst_rank;
+    int                            done_get;
+    int                            done_red;
+    int                            done_put;
+    int                            posted_put;
+} ucc_tl_ucp_allreduce_sw_pipeline_t;
+
 typedef struct ucc_tl_ucp_task {
     ucc_coll_task_t super;
     uint32_t        flags;
@@ -119,6 +159,23 @@ typedef struct ucc_tl_ucp_task {
             ucc_ee_executor_task_t *etask;
             ucc_ee_executor_t      *executor;
         } allreduce_kn;
+        struct {
+            ucp_rkey_h                                 *src_rkeys; //unpacked
+            ucp_rkey_h                                 *dst_rkeys; //unpacked
+            ucp_ep_h                                   *host_eps;
+            ucp_worker_h                                worker;
+            void                                      **sbufs;
+            void                                      **rbufs;
+            ucc_coll_task_t                            *allreduce_task_h;
+            ucc_tl_ucp_allreduce_sw_pipeline_t         *pipe;
+            ucc_ee_executor_task_t                     *etask;
+            ucc_ee_executor_t                          *executor;
+            int                                         window_size;
+            int                                         num_get_bufs;
+            int                                         tid;
+            int                                         nthreads;
+            ucs_status_ptr_t                           *put_requests;
+        } allreduce_sliding_window;
         struct {
             int                     phase;
             ucc_knomial_pattern_t   p;
