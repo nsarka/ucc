@@ -16,9 +16,21 @@
 extern const char
     *ucc_cl_urom_default_alg_select_str[UCC_CL_UROM_N_DEFAULT_ALG_SELECT_STR];
 
+struct export_buf {
+    ucp_context_h ucp_context;
+    ucp_mem_h     memh;
+    void         *packed_memh;
+    size_t        packed_memh_len;
+    void         *packed_key;
+    size_t        packed_key_len;
+    uint64_t      memh_id;
+};
+
 typedef struct ucc_cl_urom_schedule_t {
     ucc_schedule_pipelined_t super;
     ucc_mc_buffer_header_t  *scratch;
+    struct export_buf src_ebuf;
+    struct export_buf dst_ebuf;
 } ucc_cl_urom_schedule_t;
 
 static inline ucc_cl_urom_schedule_t *

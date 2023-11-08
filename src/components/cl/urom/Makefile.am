@@ -6,6 +6,10 @@ alltoall =              \
     alltoall/alltoall.h \
     alltoall/alltoall.c
 
+allreduce =               \
+    allreduce/allreduce.h \
+    allreduce/allreduce.c
+
 sources =             \
 	cl_urom.h         \
 	cl_urom.c         \
@@ -13,7 +17,8 @@ sources =             \
 	cl_urom_context.c \
 	cl_urom_team.c    \
 	cl_urom_coll.c    \
-	$(alltoall)
+	$(alltoall)		  \
+	$(allreduce)
 
 module_LTLIBRARIES         = libucc_cl_urom.la
 libucc_cl_urom_la_SOURCES  = $(sources)

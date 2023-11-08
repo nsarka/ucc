@@ -139,7 +139,7 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
     urom_domain_params.workers = &urom_lib->urom_ctx.urom_worker;
     urom_domain_params.num_workers = 1,
     urom_domain_params.domain_size = params->params.oob.n_oob_eps;
-    self->req_mc = 1; /* requires a memcpy */
+    self->req_mc = 0; /* requires a memcpy */
 
     if (params->context->params.mask & UCC_CONTEXT_PARAM_FIELD_OOB &&
         params->context->params.mask & UCC_CONTEXT_PARAM_FIELD_MEM_PARAMS) {
