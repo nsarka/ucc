@@ -64,7 +64,7 @@ static ucc_status_t ucc_cl_urom_alltoall_full_start(ucc_coll_task_t *task)
         .ucc.cmd_type      = UROM_WORKER_CMD_UCC_COLL,
         .ucc.coll_cmd.coll_args = coll_args,
         .ucc.coll_cmd.team = cl_team->teams[0],
-        .ucc.coll_cmd.use_xgvmi = ctx->xgvmi_enabled,
+        //.ucc.coll_cmd.use_xgvmi = ctx->xgvmi_enabled,
     };
     ucc_memory_type_t prev_src, prev_dst;
 

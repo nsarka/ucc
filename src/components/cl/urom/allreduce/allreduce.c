@@ -107,8 +107,8 @@ static ucc_status_t ucc_cl_urom_allreduce_full_start(ucc_coll_task_t *task)
         .ucc.cmd_type      = UROM_WORKER_CMD_UCC_COLL,
         .ucc.coll_cmd.coll_args = coll_args,
         .ucc.coll_cmd.team = cl_team->teams[0],
-        .ucc.coll_cmd.use_xgvmi = 0,
-        .ucc.coll_cmd.use_sliding_window_allreduce = 1,
+        //.ucc.coll_cmd.use_xgvmi = 0,
+        //.ucc.coll_cmd.use_sliding_window_allreduce = 1,
     };
     ucc_memory_type_t prev_src, prev_dst;
     ucc_cl_urom_schedule_t *schedule =
@@ -124,11 +124,11 @@ static ucc_status_t ucc_cl_urom_allreduce_full_start(ucc_coll_task_t *task)
     buffer_export_ucc(tl_ctx->worker.ucp_context, coll_args->src.info.buffer, coll_args->src.info.count * dt_size(coll_args->src.info.datatype), src_ebuf);
     buffer_export_ucc(tl_ctx->worker.ucp_context, coll_args->dst.info.buffer, coll_args->dst.info.count * dt_size(coll_args->dst.info.datatype), dst_ebuf);
 
-    memcpy(coll_cmd.ucc.coll_cmd.src_rkey_packed, src_ebuf->packed_key, src_ebuf->packed_key_len);
-    coll_cmd.ucc.coll_cmd.src_rkey_packed_len = src_ebuf->packed_key_len;
+    coll_cmd.ucc.coll_cmd.src_memh_packed = src_ebuf->packed_memh;
+    coll_cmd.ucc.coll_cmd.src_memh_packed_len = src_ebuf->packed_memh_len;
 
-    memcpy(coll_cmd.ucc.coll_cmd.dst_rkey_packed, dst_ebuf->packed_key, dst_ebuf->packed_key_len);
-    coll_cmd.ucc.coll_cmd.dst_rkey_packed_len = dst_ebuf->packed_key_len;
+    coll_cmd.ucc.coll_cmd.dst_memh_packed = dst_ebuf->packed_memh;
+    coll_cmd.ucc.coll_cmd.dst_memh_packed_len = dst_ebuf->packed_memh_len;
 
     urom_status = urom_worker_push_cmdq(cl_lib->urom_ctx.urom_worker, 0, &coll_cmd);
     if (UROM_OK != urom_status) {
