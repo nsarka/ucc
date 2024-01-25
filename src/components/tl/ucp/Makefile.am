@@ -26,6 +26,8 @@ alltoall =                       \
 	alltoall/alltoall.c          \
 	alltoall/alltoall_onesided.c \
 	alltoall/alltoall_pairwise.c \
+	alltoall/alltoall_nsarka.c       \
+	alltoall/alltoall_nsarka_setup.c \
 	alltoall/alltoall_bruck.c
 
 alltoallv =                        \
