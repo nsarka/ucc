@@ -148,7 +148,7 @@ ucc_tl_ucp_alltoall_nsarka_barrier(ucc_coll_task_t *coll_task)
     }
 }
 
-void ucc_tl_ucp_alltoall_progress(ucc_coll_task_t *coll_task)
+void ucc_tl_ucp_alltoall_nsarka_progress(ucc_coll_task_t *coll_task)
 {
     ucc_tl_ucp_task_t *task    = ucc_derived_of(coll_task, ucc_tl_ucp_task_t);
     /*ucc_rank_t         size    = (ucc_rank_t)task->subset.map.ep_num;
