@@ -5,7 +5,6 @@
  */
 
 #include "allreduce.h"
-#include "../allreduce/allreduce.h"
 
 ucc_base_coll_alg_info_t
     ucc_cl_urom_allreduce_algs[UCC_CL_UROM_ALLREDUCE_ALG_LAST + 1] = {
@@ -107,8 +106,7 @@ static ucc_status_t ucc_cl_urom_allreduce_full_start(ucc_coll_task_t *task)
         .ucc.cmd_type      = UROM_WORKER_CMD_UCC_COLL,
         .ucc.coll_cmd.coll_args = coll_args,
         .ucc.coll_cmd.team = cl_team->teams[0],
-        //.ucc.coll_cmd.use_xgvmi = 0,
-        //.ucc.coll_cmd.use_sliding_window_allreduce = 1,
+        .ucc.coll_cmd.use_xgvmi = 1,
     };
     ucc_memory_type_t prev_src, prev_dst;
     ucc_cl_urom_schedule_t *schedule =

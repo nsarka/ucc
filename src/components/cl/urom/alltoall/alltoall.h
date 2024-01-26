@@ -7,6 +7,7 @@
 #ifndef UROM_ALLTOALL_H_
 #define UROM_ALLTOALL_H_
 #include "../cl_urom_coll.h"
+#include "../../../tl/ucp/tl_ucp.h"
 
 enum
 {
@@ -17,9 +18,6 @@ enum
 extern ucc_base_coll_alg_info_t
     ucc_cl_urom_alltoall_algs[UCC_CL_UROM_ALLTOALL_ALG_LAST + 1];
 
-ucc_status_t ucc_cl_urom_alltoall_init(ucc_base_coll_args_t *coll_args,
-                                       ucc_base_team_t *     team,
-                                       ucc_coll_task_t **    task);
 
 static inline int ucc_cl_urom_alltoall_alg_from_str(const char *str)
 {
