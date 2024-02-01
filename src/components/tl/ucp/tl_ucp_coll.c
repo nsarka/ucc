@@ -316,6 +316,9 @@ ucc_status_t ucc_tl_ucp_alg_id_to_init(int alg_id, const char *alg_id_str,
         case UCC_TL_UCP_ALLTOALLV_ALG_HYBRID:
             *init = ucc_tl_ucp_alltoallv_hybrid_init;
             break;
+        case UCC_TL_UCP_ALLTOALLV_ALG_NSARKA:
+            *init = ucc_tl_ucp_alltoallv_nsarka_init;
+            break;
         default:
             status = UCC_ERR_INVALID_PARAM;
             break;

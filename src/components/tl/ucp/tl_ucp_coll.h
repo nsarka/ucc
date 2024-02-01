@@ -94,6 +94,9 @@ typedef struct ucc_tl_ucp_allreduce_sw_host_allgather
 typedef struct ucc_tl_ucp_alltoall_nsarka_host_allgather
     ucc_tl_ucp_alltoall_nsarka_host_allgather;
 
+typedef struct ucc_tl_ucp_alltoallv_nsarka_host_allgather
+    ucc_tl_ucp_alltoallv_nsarka_host_allgather;
+
 typedef struct ucc_tl_ucp_task {
     ucc_coll_task_t super;
     uint32_t        flags;
@@ -161,7 +164,27 @@ typedef struct ucc_tl_ucp_task {
             struct ucc_tl_ucp_alltoall_nsarka_export_buf  *src_ebuf;
             struct ucc_tl_ucp_alltoall_nsarka_export_buf  *dst_ebuf;
             int                                        inplace;
+            int                                        gets_posted;
+            int                                        gets_completed;
+            ucs_status_ptr_t                          *requests;
         } alltoall_nsarka;
+        struct {
+            ucp_rkey_h *                               src_rkeys; //unpacked
+            ucp_rkey_h *                               dst_rkeys; //unpacked
+            ucp_ep_h *                                 eps;
+            void **                                    sbufs;
+            void **                                    rbufs;
+            ucc_coll_task_t *                          alltoallv_task_h;
+            ucc_service_coll_req_t *                   allgather_scoll_req;
+            ucc_tl_ucp_alltoallv_nsarka_host_allgather *   allgather_data;
+            ucc_coll_task_t *                          barrier_task;
+            struct ucc_tl_ucp_alltoallv_nsarka_export_buf  *src_ebuf;
+            struct ucc_tl_ucp_alltoallv_nsarka_export_buf  *dst_ebuf;
+            int                                        inplace;
+            int                                        gets_posted;
+            int                                        gets_completed;
+            ucs_status_ptr_t                          *requests;
+        } alltoallv_nsarka;
         struct {
             int                     phase;
             ucc_knomial_pattern_t   p;

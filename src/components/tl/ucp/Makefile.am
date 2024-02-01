@@ -34,6 +34,8 @@ alltoallv =                        \
 	alltoallv/alltoallv.h          \
 	alltoallv/alltoallv.c          \
 	alltoallv/alltoallv_pairwise.c \
+	alltoallv/alltoallv_nsarka.c   \
+	alltoallv/alltoallv_nsarka_setup.c   \
 	alltoallv/alltoallv_hybrid.c
 
 allreduce =                                    \
