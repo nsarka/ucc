@@ -14,6 +14,8 @@ allgather =                        \
 	allgather/allgather.c          \
 	allgather/allgather_ring.c     \
 	allgather/allgather_neighbor.c \
+	allgather/allgather_nsarka.c       \
+	allgather/allgather_nsarka_setup.c \
 	allgather/allgather_knomial.c
 
 allgatherv =                     \
@@ -84,11 +86,15 @@ reduce_scatter =                            \
 	reduce_scatter/reduce_scatter.h         \
 	reduce_scatter/reduce_scatter_knomial.c \
 	reduce_scatter/reduce_scatter_ring.c    \
+	reduce_scatter/reduce_scatter_nsarka.c       \
+	reduce_scatter/reduce_scatter_nsarka_setup.c \
 	reduce_scatter/reduce_scatter.c
 
 reduce_scatterv =                          \
 	reduce_scatterv/reduce_scatterv.h      \
 	reduce_scatterv/reduce_scatterv_ring.c \
+	reduce_scatterv/reduce_scatterv_nsarka.c       \
+	reduce_scatterv/reduce_scatterv_nsarka_setup.c \
 	reduce_scatterv/reduce_scatterv.c
 
 scatter =                     \

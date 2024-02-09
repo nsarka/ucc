@@ -86,6 +86,16 @@ enum ucc_tl_ucp_task_flags {
     UCC_TL_UCP_TASK_FLAG_SUBSET = UCC_BIT(0),
 };
 
+typedef enum ucc_tl_ucp_allreduce_sw_buf_state
+{
+    FREE,
+    RECVING,
+    REDUCING,
+    REDUCED,
+    SENDING,
+    IDLE,
+} ucc_tl_ucp_allreduce_sw_buf_state;
+
 typedef struct ucc_tl_ucp_allreduce_sw_pipeline
     ucc_tl_ucp_allreduce_sw_pipeline;
 typedef struct ucc_tl_ucp_allreduce_sw_host_allgather
@@ -96,6 +106,21 @@ typedef struct ucc_tl_ucp_alltoall_nsarka_host_allgather
 
 typedef struct ucc_tl_ucp_alltoallv_nsarka_host_allgather
     ucc_tl_ucp_alltoallv_nsarka_host_allgather;
+
+typedef struct ucc_tl_ucp_reduce_scatter_nsarka_host_allgather
+    ucc_tl_ucp_reduce_scatter_nsarka_host_allgather;
+
+typedef struct ucc_tl_ucp_reduce_scatterv_nsarka_pipeline
+    ucc_tl_ucp_reduce_scatterv_nsarka_pipeline;
+typedef struct ucc_tl_ucp_reduce_scatterv_nsarka_host_allgather
+    ucc_tl_ucp_reduce_scatterv_nsarka_host_allgather;
+
+typedef struct ucc_tl_ucp_reduce_scatter_nsarka_pipeline
+ucc_tl_ucp_reduce_scatter_nsarka_pipeline;
+
+typedef struct ucc_tl_ucp_allgather_nsarka_host_allgather
+    ucc_tl_ucp_allgather_nsarka_host_allgather;
+
 
 typedef struct ucc_tl_ucp_task {
     ucc_coll_task_t super;
@@ -174,6 +199,23 @@ typedef struct ucc_tl_ucp_task {
             ucp_ep_h *                                 eps;
             void **                                    sbufs;
             void **                                    rbufs;
+            ucc_coll_task_t *                          allgather_task_h;
+            ucc_service_coll_req_t *                   allgather_scoll_req;
+            ucc_tl_ucp_allgather_nsarka_host_allgather *   allgather_data;
+            ucc_coll_task_t *                          barrier_task;
+            struct ucc_tl_ucp_allgather_nsarka_export_buf  *src_ebuf;
+            struct ucc_tl_ucp_allgather_nsarka_export_buf  *dst_ebuf;
+            int                                        inplace;
+            int                                        gets_posted;
+            int                                        gets_completed;
+            ucs_status_ptr_t                          *requests;
+        } allgather_nsarka;
+        struct {
+            ucp_rkey_h *                               src_rkeys; //unpacked
+            ucp_rkey_h *                               dst_rkeys; //unpacked
+            ucp_ep_h *                                 eps;
+            void **                                    sbufs;
+            void **                                    rbufs;
             ucc_coll_task_t *                          alltoallv_task_h;
             ucc_service_coll_req_t *                   allgather_scoll_req;
             ucc_tl_ucp_alltoallv_nsarka_host_allgather *   allgather_data;
@@ -185,6 +227,48 @@ typedef struct ucc_tl_ucp_task {
             int                                        gets_completed;
             ucs_status_ptr_t                          *requests;
         } alltoallv_nsarka;
+        struct {
+            int                                        reduce_in_progress;
+            ucp_rkey_h *                               src_rkeys; //unpacked
+            ucp_rkey_h *                               dst_rkeys; //unpacked
+            ucp_ep_h *                                 eps;
+            void **                                    sbufs;
+            void **                                    rbufs;
+            ucc_coll_task_t *                          reduce_scatterv_task_h;
+            ucc_tl_ucp_reduce_scatter_nsarka_pipeline *         pipe;
+            ucc_ee_executor_task_t *                   etask;
+            ucc_ee_executor_t *                        executor;
+            int                                        put_window_size;
+            int                                        num_get_bufs;
+            ucs_status_ptr_t *                         put_requests;
+            ucc_service_coll_req_t *                   allgather_scoll_req;
+            ucc_tl_ucp_reduce_scatter_nsarka_host_allgather *allgather_data;
+            ucc_coll_task_t *                          barrier_task;
+            struct ucc_tl_ucp_reduce_scatter_nsarka_export_buf *src_ebuf;
+            struct ucc_tl_ucp_reduce_scatter_nsarka_export_buf *dst_ebuf;
+            int                                        inplace;
+        } reduce_scatter_nsarka;
+        struct {
+            int                                        reduce_in_progress;
+            ucp_rkey_h *                               src_rkeys; //unpacked
+            ucp_rkey_h *                               dst_rkeys; //unpacked
+            ucp_ep_h *                                 eps;
+            void **                                    sbufs;
+            void **                                    rbufs;
+            ucc_coll_task_t *                          reduce_scatterv_task_h;
+            ucc_tl_ucp_reduce_scatterv_nsarka_pipeline *         pipe;
+            ucc_ee_executor_task_t *                   etask;
+            ucc_ee_executor_t *                        executor;
+            int                                        put_window_size;
+            int                                        num_get_bufs;
+            ucs_status_ptr_t *                         put_requests;
+            ucc_service_coll_req_t *                   allgather_scoll_req;
+            ucc_tl_ucp_reduce_scatterv_nsarka_host_allgather *allgather_data;
+            ucc_coll_task_t *                          barrier_task;
+            struct ucc_tl_ucp_reduce_scatterv_nsarka_export_buf *src_ebuf;
+            struct ucc_tl_ucp_reduce_scatterv_nsarka_export_buf *dst_ebuf;
+            int                                        inplace;
+        } reduce_scatterv_nsarka;
         struct {
             int                     phase;
             ucc_knomial_pattern_t   p;

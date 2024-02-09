@@ -43,15 +43,7 @@ typedef struct ucc_tl_ucp_allreduce_sw_global_work_buf_info {
     void *packed_dst_memh;
 } ucc_tl_ucp_allreduce_sw_global_work_buf_info;
 
-typedef enum ucc_tl_ucp_allreduce_sw_buf_state
-{
-    FREE,
-    RECVING,
-    REDUCING,
-    REDUCED,
-    SENDING,
-    IDLE,
-} ucc_tl_ucp_allreduce_sw_buf_state;
+
 
 typedef struct ucc_tl_ucp_allreduce_sw_buf {
     void *                            buf;

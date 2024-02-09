@@ -63,8 +63,6 @@ ucc_tl_ucp_alltoallv_nsarka_init(ucc_base_coll_args_t *coll_args,
 
     ALLTOALLV_TASK_CHECK(coll_args->args, tl_team);
 
-    printf("nick alltoallv nsarka\n");
-
     task = ucc_tl_ucp_init_task(coll_args, team);
     if (ucc_unlikely(!task)) {
         ucc_error("couldnt allocate task");

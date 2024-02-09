@@ -255,6 +255,9 @@ ucc_status_t ucc_tl_ucp_alg_id_to_init(int alg_id, const char *alg_id_str,
         case UCC_TL_UCP_ALLGATHER_ALG_NEIGHBOR:
             *init = ucc_tl_ucp_allgather_neighbor_init;
             break;
+        case UCC_TL_UCP_ALLGATHER_ALG_NSARKA:
+            *init = ucc_tl_ucp_allgather_nsarka_init;
+            break;
         default:
             status = UCC_ERR_INVALID_PARAM;
             break;
@@ -329,6 +332,9 @@ ucc_status_t ucc_tl_ucp_alg_id_to_init(int alg_id, const char *alg_id_str,
         case UCC_TL_UCP_REDUCE_SCATTER_ALG_RING:
             *init = ucc_tl_ucp_reduce_scatter_ring_init;
             break;
+        case UCC_TL_UCP_REDUCE_SCATTER_ALG_NSARKA:
+            *init = ucc_tl_ucp_reduce_scatter_nsarka_init;
+            break;
         default:
             status = UCC_ERR_INVALID_PARAM;
             break;
@@ -338,6 +344,9 @@ ucc_status_t ucc_tl_ucp_alg_id_to_init(int alg_id, const char *alg_id_str,
         switch (alg_id) {
         case UCC_TL_UCP_REDUCE_SCATTERV_ALG_RING:
             *init = ucc_tl_ucp_reduce_scatterv_ring_init;
+            break;
+        case UCC_TL_UCP_REDUCE_SCATTERV_ALG_NSARKA:
+            *init = ucc_tl_ucp_reduce_scatterv_nsarka_init;
             break;
         default:
             status = UCC_ERR_INVALID_PARAM;

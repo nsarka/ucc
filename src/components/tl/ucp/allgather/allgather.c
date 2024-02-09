@@ -23,6 +23,10 @@ ucc_base_coll_alg_info_t
             {.id   = UCC_TL_UCP_ALLGATHER_ALG_NEIGHBOR,
              .name = "neighbor",
              .desc = "O(N) Neighbor Exchange N/2 steps"},
+        [UCC_TL_UCP_ALLGATHER_ALG_NSARKA] =
+            {.id   = UCC_TL_UCP_ALLGATHER_ALG_NSARKA,
+             .name = "nsarka",
+             .desc = "nsarka xgvmi offload"},
         [UCC_TL_UCP_ALLGATHER_ALG_LAST] = {
             .id = 0, .name = NULL, .desc = NULL}};
 
@@ -42,4 +46,27 @@ char *ucc_tl_ucp_allgather_score_str_get(ucc_tl_ucp_team_t *team)
     ucc_snprintf_safe(str, max_size,
                       UCC_TL_UCP_ALLGATHER_DEFAULT_ALG_SELECT_STR, algo_num);
     return str;
+}
+
+ucc_status_t
+ucc_tl_ucp_allgather_nsarka_init(ucc_base_coll_args_t *coll_args,
+                                         ucc_base_team_t *     team,
+                                         ucc_coll_task_t **    task_h)
+{
+    ucc_status_t             status  = UCC_OK;
+    ucc_tl_ucp_task_t *      task;
+
+    task = ucc_tl_ucp_init_task(coll_args, team);
+    if (ucc_unlikely(!task)) {
+        ucc_error("couldnt allocate task");
+        return UCC_ERR_NO_MEMORY;
+    }
+    *task_h              = &task->super;
+    task->super.post     = ucc_tl_ucp_allgather_nsarka_start;
+    task->super.progress = ucc_tl_ucp_allgather_nsarka_progress;
+    task->super.finalize = ucc_tl_ucp_allgather_nsarka_finalize;
+
+    ucc_tl_ucp_allgather_nsarka_task_init(coll_args, team, task);
+
+    return status;
 }
