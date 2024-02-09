@@ -24,6 +24,18 @@ ucc_status_t ucc_cl_urom_allreduce_full_init(
                          ucc_base_coll_args_t *coll_args, ucc_base_team_t *team,
                          ucc_coll_task_t **task);
 
+ucc_status_t ucc_cl_urom_reduce_scatter_full_init(
+                         ucc_base_coll_args_t *coll_args, ucc_base_team_t *team,
+                         ucc_coll_task_t **task);
+
+ucc_status_t ucc_cl_urom_reduce_scatterv_full_init(
+                         ucc_base_coll_args_t *coll_args, ucc_base_team_t *team,
+                         ucc_coll_task_t **task);
+
+ucc_status_t ucc_cl_urom_allgather_full_init(
+                         ucc_base_coll_args_t *coll_args, ucc_base_team_t *team,
+                         ucc_coll_task_t **task);
+
 ucc_status_t ucc_cl_urom_coll_init(ucc_base_coll_args_t *coll_args,
                                    ucc_base_team_t      *team,
                                    ucc_coll_task_t     **task)
@@ -54,13 +66,20 @@ ucc_status_t ucc_cl_urom_coll_init(ucc_base_coll_args_t *coll_args,
         }
         urom_lib->urom_ctx.pass_dc_exist = 1;
     }
+
     switch (coll_args->args.coll_type) {
         case UCC_COLL_TYPE_ALLTOALL:
             return ucc_cl_urom_alltoall_full_init(coll_args, team, task);
         case UCC_COLL_TYPE_ALLTOALLV:
             return ucc_cl_urom_alltoallv_full_init(coll_args, team, task);
+        case UCC_COLL_TYPE_ALLGATHER:
+            return ucc_cl_urom_allgather_full_init(coll_args, team, task);
         case UCC_COLL_TYPE_ALLREDUCE:
             return ucc_cl_urom_allreduce_full_init(coll_args, team, task);
+        case UCC_COLL_TYPE_REDUCE_SCATTER:
+            return ucc_cl_urom_reduce_scatter_full_init(coll_args, team, task);
+        case UCC_COLL_TYPE_REDUCE_SCATTERV:
+            return ucc_cl_urom_reduce_scatterv_full_init(coll_args, team, task);
         default:
             cl_error(urom_lib, "coll_type %s is not supported", ucc_coll_type_str(coll_args->args.coll_type));
             break;

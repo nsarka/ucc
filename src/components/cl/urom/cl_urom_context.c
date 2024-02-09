@@ -174,6 +174,8 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
     ucs_status = ucp_mem_map(tl_ctx->worker.ucp_context, &mem_params, &self->xgvmi.xgvmi_memh);
     assert(ucs_status == UCS_OK);
 
+    self->ucp_context = tl_ctx->worker.ucp_context;
+
     if (urom_lib->cfg.use_xgvmi) {
         pack_params.field_mask = UCP_MEMH_PACK_PARAM_FIELD_FLAGS;
         pack_params.flags = UCP_MEMH_PACK_FLAG_EXPORT;
@@ -189,10 +191,10 @@ UCC_CLASS_INIT_FUNC(ucc_cl_urom_context_t,
     }
 
     ucs_status = ucp_rkey_pack(tl_ctx->worker.ucp_context, self->xgvmi.xgvmi_memh, &self->xgvmi.packed_mkey,
-                               &self->xgvmi.packed_mkey_len);
+                            &self->xgvmi.packed_mkey_len);
     if (UCS_OK != ucs_status) {
         printf("ucp_rkey_pack() returned error: %s\n",
-               ucs_status_string(ucs_status));
+            ucs_status_string(ucs_status));
         return UCC_ERR_NO_RESOURCE;
     }
     domain_mem_map[0].mask = UROM_WORKER_MEM_MAP_FIELD_BASE_VA | UROM_WORKER_MEM_MAP_FIELD_MKEY;
@@ -277,6 +279,8 @@ UCC_CLASS_CLEANUP_FUNC(ucc_cl_urom_context_t)
     urom_worker_notify_t *notif;
     urom_status_t urom_status;
     int i;
+
+    ucp_mem_unmap(self->ucp_context, self->xgvmi.xgvmi_memh);
 
     cl_debug(self->super.super.lib, "finalizing cl context: %p", self);
     for (i = 0; i < self->super.n_tl_ctxs; i++) {

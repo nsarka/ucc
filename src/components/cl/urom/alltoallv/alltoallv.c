@@ -105,6 +105,7 @@ static ucc_status_t ucc_cl_urom_alltoallv_full_start(ucc_coll_task_t *task)
         .ucc.cmd_type      = UROM_WORKER_CMD_UCC_COLL,
         .ucc.coll_cmd.coll_args = coll_args,
         .ucc.coll_cmd.team = cl_team->teams[0],
+        .ucc.coll_cmd.team_size = UCC_CL_TEAM_SIZE(cl_team),
         //.ucc.coll_cmd.use_xgvmi = ctx->xgvmi_enabled,
         .ucc.coll_cmd.use_xgvmi = 1,
     };
@@ -121,20 +122,42 @@ static ucc_status_t ucc_cl_urom_alltoallv_full_start(ucc_coll_task_t *task)
     size_t size_mod_src = dt_size(coll_args->src.info_v.datatype);
     size_t size_mod_dst = dt_size(coll_args->dst.info_v.datatype);
 
+    uint32_t *prev_src_counts = (uint32_t*) coll_args->src.info_v.counts;
+    uint32_t *prev_dst_counts = (uint32_t*) coll_args->dst.info_v.counts;
+    uint32_t *prev_src_displacements = (uint32_t*) coll_args->src.info_v.displacements;
+    uint32_t *prev_dst_displacements = (uint32_t*) coll_args->dst.info_v.displacements;
+
+    if (
+        !(
+            (coll_args->mask & UCC_COLL_ARGS_FIELD_FLAGS) &&
+            (coll_args->flags & UCC_COLL_ARGS_FLAG_COUNT_64BIT)
+        )
+        ) {
+
+            coll_args->src.info_v.counts = ucc_malloc(sizeof(ucc_count_t) * UCC_CL_TEAM_SIZE(cl_team));
+            coll_args->dst.info_v.counts = ucc_malloc(sizeof(ucc_count_t) * UCC_CL_TEAM_SIZE(cl_team));
+            coll_args->src.info_v.displacements = ucc_malloc(sizeof(ucc_aint_t) * UCC_CL_TEAM_SIZE(cl_team));
+            coll_args->dst.info_v.displacements = ucc_malloc(sizeof(ucc_aint_t) * UCC_CL_TEAM_SIZE(cl_team));
+
+            for (i = 0; i < UCC_CL_TEAM_SIZE(cl_team); i++) {
+                uint32_t c = prev_src_counts[i];
+                uint32_t d = prev_src_displacements[i];
+                coll_args->src.info_v.counts[i] = (ucc_count_t) c;
+                coll_args->src.info_v.displacements[i] = (ucc_aint_t) d;
+
+                c = prev_dst_counts[i];
+                d = prev_dst_displacements[i];
+                coll_args->dst.info_v.counts[i] = (ucc_count_t) c;
+                coll_args->dst.info_v.displacements[i] = (ucc_aint_t) d;
+            }
+    }
+
     // get the total count of the src and dst bufs
-    for (i = 0; i < UCC_CL_TEAM_SIZE(cl_team); i++) { 
-        if ((coll_args->mask & UCC_COLL_ARGS_FIELD_FLAGS) && 
-            (coll_args->flags & UCC_COLL_ARGS_FLAG_COUNT_64BIT)) {
-            uint64_t count = coll_args->src.info_v.counts[i] * size_mod_src;
-            src_count += count;
-            count = coll_args->dst.info_v.counts[i] * size_mod_dst;
-            dst_count += count;
-        } else {
-            uint32_t count = coll_args->src.info_v.counts[i] * size_mod_src;
-            src_count += count;
-            count = coll_args->dst.info_v.counts[i] * size_mod_dst;
-            dst_count += count;
-        }
+    for (i = 0; i < UCC_CL_TEAM_SIZE(cl_team); i++) {
+        uint64_t count = coll_args->src.info_v.counts[i] * size_mod_src;
+        src_count += count;
+        count = coll_args->dst.info_v.counts[i] * size_mod_dst;
+        dst_count += count;
     }
 
     prev_src = coll_args->src.info_v.mem_type;
@@ -158,6 +181,15 @@ static ucc_status_t ucc_cl_urom_alltoallv_full_start(ucc_coll_task_t *task)
     }
     coll_args->src.info_v.mem_type = prev_src;
     coll_args->dst.info_v.mem_type = prev_dst;
+
+    ucc_free(coll_args->src.info_v.counts);
+    ucc_free(coll_args->dst.info_v.counts);
+    ucc_free(coll_args->src.info_v.displacements);
+    ucc_free(coll_args->dst.info_v.displacements);
+    coll_args->src.info_v.counts = (ucc_count_t *) prev_src_counts;
+    coll_args->dst.info_v.counts = (ucc_count_t *) prev_dst_counts;
+    coll_args->src.info_v.displacements = (ucc_aint_t *) prev_src_displacements;
+    coll_args->dst.info_v.displacements = (ucc_aint_t *) prev_dst_displacements;
 
     task->status = UCC_INPROGRESS;
     cl_debug(&cl_lib->super, "pushed the collective to urom");

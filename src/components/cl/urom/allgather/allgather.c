@@ -4,17 +4,16 @@
  * See file LICENSE for terms.
  */
 
-#include "allreduce.h"
+#include "allgather.h"
 
 ucc_base_coll_alg_info_t
-    ucc_cl_urom_allreduce_algs[UCC_CL_UROM_ALLREDUCE_ALG_LAST + 1] = {
-        [UCC_CL_UROM_ALLREDUCE_ALG_FULL] =
-            {.id   = UCC_CL_UROM_ALLREDUCE_ALG_FULL,
+    ucc_cl_urom_allgather_algs[UCC_CL_UROM_ALLGATHER_ALG_LAST + 1] = {
+        [UCC_CL_UROM_ALLGATHER_ALG_FULL] =
+            {.id   = UCC_CL_UROM_ALLGATHER_ALG_FULL,
              .name = "urom_full_offload",
-             .desc = "full offload of allreduce"},
-        [UCC_CL_UROM_ALLREDUCE_ALG_LAST] = {
+             .desc = "full offload of allgather"},
+        [UCC_CL_UROM_ALLGATHER_ALG_LAST] = {
             .id = 0, .name = NULL, .desc = NULL}};
-
 
 static int buffer_export_ucc(ucp_context_h ucp_context, void *buf, size_t len,
                       struct export_buf *ebuf)
@@ -44,19 +43,11 @@ static int buffer_export_ucc(ucp_context_h ucp_context, void *buf, size_t len,
         ebuf->packed_memh     = NULL;
         ebuf->packed_memh_len = 0;
     }
-/*
-    ucs_status = ucp_rkey_pack(ucp_context, ebuf->memh, &ebuf->packed_key,
-                               &ebuf->packed_key_len);
-    if (UCS_OK != ucs_status) {
-        printf("ucp_rkey_pack() returned error: %s\n",
-               ucs_status_string(ucs_status));
-        return UROM_ERR_NO_RESOURCE;
-    }
-*/
+
     return 0;
 }
 
-ucc_status_t ucc_cl_urom_allreduce_triggered_post_setup(ucc_coll_task_t *task)
+ucc_status_t ucc_cl_urom_allgather_triggered_post_setup(ucc_coll_task_t *task)
 {
     return UCC_OK;
 }
@@ -92,7 +83,7 @@ static size_t dt_size(ucc_datatype_t ucc_dt)
     return size_mod;
 }
 
-static ucc_status_t ucc_cl_urom_allreduce_full_start(ucc_coll_task_t *task)
+static ucc_status_t ucc_cl_urom_allgather_full_start(ucc_coll_task_t *task)
 {
     ucc_cl_urom_team_t     *cl_team = ucc_derived_of(task->team, ucc_cl_urom_team_t);
     ucc_cl_urom_context_t *ctx  = UCC_CL_UROM_TEAM_CTX(cl_team);
@@ -107,9 +98,11 @@ static ucc_status_t ucc_cl_urom_allreduce_full_start(ucc_coll_task_t *task)
         .ucc.cmd_type      = UROM_WORKER_CMD_UCC_COLL,
         .ucc.coll_cmd.coll_args = coll_args,
         .ucc.coll_cmd.team = cl_team->teams[0],
+        //.ucc.coll_cmd.use_xgvmi = ctx->xgvmi_enabled,
         .ucc.coll_cmd.use_xgvmi = 1,
     };
     ucc_memory_type_t prev_src, prev_dst;
+
     ucc_cl_urom_schedule_t *schedule =
         ucc_derived_of(task, ucc_cl_urom_schedule_t);
     struct export_buf *src_ebuf = &schedule->src_ebuf;
@@ -161,16 +154,18 @@ static ucc_status_t ucc_cl_urom_allreduce_full_start(ucc_coll_task_t *task)
     return ucc_progress_queue_enqueue(ctx->super.super.ucc_context->pq, task);
 }
 
-static ucc_status_t ucc_cl_urom_allreduce_full_finalize(ucc_coll_task_t *task)
+static ucc_status_t ucc_cl_urom_allgather_full_finalize(ucc_coll_task_t *task)
 {
+    ucc_cl_urom_schedule_t *schedule =
+        ucc_derived_of(task, ucc_cl_urom_schedule_t);
+    ucc_status_t status;
+
     ucc_cl_urom_team_t     *cl_team = ucc_derived_of(task->team, ucc_cl_urom_team_t);
     ucc_cl_urom_context_t *ctx  = UCC_CL_UROM_TEAM_CTX(cl_team);
     ucc_cl_urom_lib_t *cl_lib = ucc_derived_of(ctx->super.super.lib, ucc_cl_urom_lib_t);
     int ucp_index = cl_lib->tl_ucp_index;
     ucc_tl_ucp_context_t *tl_ctx = ucc_derived_of(ctx->super.tl_ctxs[ucp_index], ucc_tl_ucp_context_t);
-    ucc_status_t status;
-    ucc_cl_urom_schedule_t *schedule =
-        ucc_derived_of(task, ucc_cl_urom_schedule_t);
+
     struct export_buf *src_ebuf = &schedule->src_ebuf;
     struct export_buf *dst_ebuf = &schedule->dst_ebuf;
 
@@ -182,7 +177,7 @@ static ucc_status_t ucc_cl_urom_allreduce_full_finalize(ucc_coll_task_t *task)
     return status;
 }
 
-static void ucc_cl_urom_allreduce_full_progress(ucc_coll_task_t *ctask)
+static void ucc_cl_urom_allgather_full_progress(ucc_coll_task_t *ctask)
 {
     ucc_cl_urom_team_t     *cl_team = ucc_derived_of(ctask->team, ucc_cl_urom_team_t);
     ucc_cl_urom_context_t *ctx  = UCC_CL_UROM_TEAM_CTX(cl_team);
@@ -220,7 +215,7 @@ static void ucc_cl_urom_allreduce_full_progress(ucc_coll_task_t *ctask)
     ctask->status = (ucc_status_t) notif->ucc.status;
 }  
 
-ucc_status_t ucc_cl_urom_allreduce_full_init(
+ucc_status_t ucc_cl_urom_allgather_full_init(
                          ucc_base_coll_args_t *coll_args, ucc_base_team_t *team,
                          ucc_coll_task_t **task)
 {
@@ -251,18 +246,18 @@ ucc_status_t ucc_cl_urom_allreduce_full_init(
         coll_args->args.dst.info.buffer = ptr + count;
     } 
     memcpy(&args, coll_args, sizeof(args));
-    status = ucc_schedule_init(schedule, &args, team);
+    status = ucc_schedule_init(schedule, &args, team); 
     if (UCC_OK != status) {
         ucc_cl_urom_put_schedule(schedule);
         return status;
     }
 
-    schedule->super.post           = ucc_cl_urom_allreduce_full_start;
-    schedule->super.progress       = ucc_cl_urom_allreduce_full_progress;
-    schedule->super.finalize       = ucc_cl_urom_allreduce_full_finalize;
+    schedule->super.post           = ucc_cl_urom_allgather_full_start;
+    schedule->super.progress       = ucc_cl_urom_allgather_full_progress;
+    schedule->super.finalize       = ucc_cl_urom_allgather_full_finalize;
     schedule->super.triggered_post = ucc_triggered_post;
     schedule->super.triggered_post_setup =
-        ucc_cl_urom_allreduce_triggered_post_setup;
+        ucc_cl_urom_allgather_triggered_post_setup;
 
     *task = &schedule->super;
     cl_debug(cl_lib, "urom coll init'd");

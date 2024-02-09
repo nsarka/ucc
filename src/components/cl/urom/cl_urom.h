@@ -81,6 +81,7 @@ typedef struct ucc_cl_urom_context {
     void            *old_dest;
     void            *old_src;
     ucc_rank_t       ctx_rank;     //FIXME: this is not right
+    ucp_context_h    ucp_context;
 } ucc_cl_urom_context_t;
 UCC_CLASS_DECLARE(ucc_cl_urom_context_t, const ucc_base_context_params_t *,
                   const ucc_base_config_t *);

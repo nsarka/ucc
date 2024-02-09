@@ -6,9 +6,25 @@ alltoall =              \
     alltoall/alltoall.h \
     alltoall/alltoall.c
 
+allgather =              \
+    allgather/allgather.h \
+    allgather/allgather.c
+
+alltoallv =               \
+    alltoallv/alltoallv.h \
+    alltoallv/alltoallv.c
+
 allreduce =               \
     allreduce/allreduce.h \
     allreduce/allreduce.c
+
+reduce_scatter =               \
+    reduce_scatter/reduce_scatter.h \
+    reduce_scatter/reduce_scatter.c
+
+reduce_scatterv =               \
+    reduce_scatterv/reduce_scatterv.h \
+    reduce_scatterv/reduce_scatterv.c
 
 sources =             \
 	cl_urom.h         \
@@ -18,6 +34,10 @@ sources =             \
 	cl_urom_team.c    \
 	cl_urom_coll.c    \
 	$(alltoall)		  \
+	$(allgather)      \
+	$(alltoallv)      \
+	$(reduce_scatter) \
+	$(reduce_scatterv) \
 	$(allreduce)
 
 module_LTLIBRARIES         = libucc_cl_urom.la
