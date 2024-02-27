@@ -215,6 +215,8 @@ static inline int alg_id_from_str(ucc_coll_type_t coll_type, const char *str)
     switch (coll_type) {
     case UCC_COLL_TYPE_ALLGATHER:
         return ucc_tl_ucp_allgather_alg_from_str(str);
+    case UCC_COLL_TYPE_ALLGATHERV:
+        return ucc_tl_ucp_allgatherv_alg_from_str(str);
     case UCC_COLL_TYPE_ALLREDUCE:
         return ucc_tl_ucp_allreduce_alg_from_str(str);
     case UCC_COLL_TYPE_ALLTOALL:
@@ -257,6 +259,19 @@ ucc_status_t ucc_tl_ucp_alg_id_to_init(int alg_id, const char *alg_id_str,
             break;
         case UCC_TL_UCP_ALLGATHER_ALG_NSARKA:
             *init = ucc_tl_ucp_allgather_nsarka_init;
+            break;
+        default:
+            status = UCC_ERR_INVALID_PARAM;
+            break;
+        };
+        break;
+    case UCC_COLL_TYPE_ALLGATHERV:
+        switch (alg_id) {
+        case UCC_TL_UCP_ALLGATHERV_ALG_RING:
+            *init = ucc_tl_ucp_allgatherv_ring_init;
+            break;
+        case UCC_TL_UCP_ALLGATHERV_ALG_NSARKA:
+            *init = ucc_tl_ucp_allgatherv_nsarka_init;
             break;
         default:
             status = UCC_ERR_INVALID_PARAM;

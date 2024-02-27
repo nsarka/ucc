@@ -21,6 +21,8 @@ allgather =                        \
 allgatherv =                     \
 	allgatherv/allgatherv.h      \
 	allgatherv/allgatherv.c      \
+	allgatherv/allgatherv_nsarka.c       \
+	allgatherv/allgatherv_nsarka_setup.c \
 	allgatherv/allgatherv_ring.c
 
 alltoall =                       \
