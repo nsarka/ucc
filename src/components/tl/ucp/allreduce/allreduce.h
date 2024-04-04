@@ -55,7 +55,7 @@ ucc_tl_ucp_allreduce_sliding_window_task_init(ucc_base_coll_args_t *coll_args,
                                               ucc_tl_ucp_task_t *   task);
 
 ucc_status_t ucc_tl_ucp_allreduce_sliding_window_allgather_info_finalize(
-    ucc_service_coll_req_t *scoll_req, ucc_tl_ucp_task_t *sw_task);
+    ucc_tl_ucp_task_t *sw_task, int in_place);
 
 ucc_status_t
 ucc_tl_ucp_allreduce_sliding_window_free_gwbi(ucc_coll_task_t *coll_task);
@@ -67,7 +67,8 @@ void ucc_tl_ucp_allreduce_knomial_progress(ucc_coll_task_t *task);
 ucc_status_t
 ucc_tl_ucp_allreduce_sliding_window_start(ucc_coll_task_t *coll_task);
 
-void ucc_tl_ucp_allreduce_sliding_window_progress(ucc_coll_task_t *task);
+void ucc_tl_ucp_allreduce_sliding_window_onesided_progress(
+    ucc_coll_task_t *task);
 
 ucc_status_t
 ucc_tl_ucp_allreduce_sliding_window_finalize(ucc_coll_task_t *task);

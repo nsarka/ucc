@@ -89,9 +89,9 @@ enum ucc_tl_ucp_task_flags {
 };
 
 typedef struct ucc_tl_ucp_allreduce_sw_pipeline
-    ucc_tl_ucp_allreduce_sw_pipeline;
+    ucc_tl_ucp_allreduce_sw_pipeline_t;
 typedef struct ucc_tl_ucp_allreduce_sw_host_allgather
-    ucc_tl_ucp_allreduce_sw_host_allgather;
+    ucc_tl_ucp_allreduce_sw_host_allgather_t;
 
 typedef struct ucc_tl_ucp_task {
     ucc_coll_task_t super;
@@ -132,15 +132,18 @@ typedef struct ucc_tl_ucp_task {
             ucp_rkey_h                                *dst_rkeys; //unpacked
             void                                     **sbufs;
             void                                     **rbufs;
-            ucc_tl_ucp_allreduce_sw_pipeline          *pipe;
+            ucc_tl_ucp_allreduce_sw_pipeline_t        *pipe;
             ucc_ee_executor_task_t                    *etask;
             ucc_ee_executor_t                         *executor;
             ucs_status_ptr_t                          *put_requests;
-            ucc_tl_ucp_allreduce_sw_host_allgather    *allgather_data;
+            ucc_tl_ucp_allreduce_sw_host_allgather_t  *allgather_data;
             ucc_schedule_t                            *sw_sched;
             struct ucc_tl_ucp_allreduce_sw_export_buf *src_ebuf;
             struct ucc_tl_ucp_allreduce_sw_export_buf *dst_ebuf;
         } allreduce_sliding_window;
+        struct {
+            ucc_tl_ucp_task_t *sw_task;
+        } allreduce_sliding_window_onesided;
         struct {
             int                     phase;
             ucc_knomial_pattern_t   p;
