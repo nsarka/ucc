@@ -65,6 +65,8 @@ ucc_tl_ucp_allreduce_sliding_window_start(ucc_coll_task_t *coll_task)
     int put_window_size = UCC_TL_UCP_TEAM_LIB(team)
                               ->cfg.allreduce_sliding_window_put_window_size;
 
+    printf("nick ucc_tl_ucp_allreduce_sliding_window_start\n");
+
     ucc_tl_ucp_allreduce_sliding_window_reset_pipeline(
         pipe, rank, put_window_size);
 
@@ -75,6 +77,7 @@ ucc_tl_ucp_allreduce_sliding_window_start(ucc_coll_task_t *coll_task)
     }
 
     ucc_tl_ucp_task_reset(task, UCC_INPROGRESS);
+    task->super.super.status = UCC_INPROGRESS;
 
     task->allreduce_sliding_window.reduce_in_progress = 0;
     //task->allreduce_sliding_window.barrier_task       = NULL; // nick
@@ -90,8 +93,12 @@ ucc_tl_ucp_allreduce_sliding_window_start(ucc_coll_task_t *coll_task)
     scoll_req->data                                    = allgather_data;
     task->allreduce_sliding_window.allgather_scoll_req = scoll_req;*/
 
-    ucc_schedule_start(&task->allreduce_sliding_window.sw_sched->super);
+    if (ucc_schedule_start(&task->allreduce_sliding_window.sw_sched->super) != UCC_OK) {
+        printf("nick schedule start failed\n");
+    }
     //return ucc_progress_queue_enqueue(UCC_TL_CORE_CTX(team)->pq, &task->super);
+
+    printf("nick done in ucc_tl_ucp_allreduce_sliding_window_start\n");
 
     return status;
 }
@@ -102,6 +109,8 @@ ucc_tl_ucp_allreduce_sliding_window_finalize(ucc_coll_task_t *coll_task)
     ucc_tl_ucp_task_t *task = ucc_derived_of(coll_task, ucc_tl_ucp_task_t);
     ucc_status_t       st =
         ucc_ee_executor_finalize(task->allreduce_sliding_window.executor);
+
+    printf("nick ucc_tl_ucp_allreduce_sliding_window_finalize\n");
 
     if (ucc_unlikely(st != UCC_OK)) {
         tl_error(UCC_TASK_LIB(task), "failed to finalize executor");
@@ -215,6 +224,8 @@ static inline void ucc_tl_ucp_allreduce_sliding_window_allgather_free_rkeys(
     ucc_tl_ucp_task_t *task      = ucc_derived_of(coll_task, ucc_tl_ucp_task_t);
     int                in_place  = UCC_IS_INPLACE(coll_task->bargs.args);
 
+    printf("nick ucc_tl_ucp_allreduce_sliding_window_allgather_free_rkeys\n");
+
     for (i = 0; i < team_size; i++) {
         if (!in_place)
             ucp_rkey_destroy(task->allreduce_sliding_window.src_rkeys[i]);
@@ -222,7 +233,7 @@ static inline void ucc_tl_ucp_allreduce_sliding_window_allgather_free_rkeys(
     }
 }
 
-void ucc_tl_ucp_allreduce_sliding_window_progress(ucc_coll_task_t *coll_task)
+void ucc_tl_ucp_allreduce_sliding_window_onesided_progress(ucc_coll_task_t *coll_task)
 {
     ucc_tl_ucp_task_t *task    = ucc_derived_of(coll_task, ucc_tl_ucp_task_t);
     ucc_rank_t         size    = (ucc_rank_t)task->subset.map.ep_num;
@@ -256,6 +267,8 @@ void ucc_tl_ucp_allreduce_sliding_window_progress(ucc_coll_task_t *coll_task)
     int                            window;
     int                            put_idx;
     ucp_ep_h                       ep;
+
+    printf("nick ucc_tl_ucp_allreduce_sliding_window_onesided_progress\n");
 /*
     if (allgather_scoll_req != NULL) {
         ucc_tl_ucp_allreduce_sliding_window_allgather_info_test(coll_task);

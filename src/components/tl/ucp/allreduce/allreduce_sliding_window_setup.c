@@ -68,6 +68,8 @@ ucc_tl_ucp_allreduce_sliding_window_alloc_pipe(ucc_base_coll_args_t *coll_args,
         return UCC_ERR_NO_RESOURCE;
     }
 
+    printf("nick ucc_tl_ucp_allreduce_sliding_window_alloc_pipe\n");
+
     if (put_window_size <= 0)
         put_window_size = team_size;
     if (num_get_bufs <= 0)
@@ -117,6 +119,8 @@ ucc_tl_ucp_allreduce_sliding_window_task_init(ucc_base_coll_args_t *coll_args,
     ucc_tl_ucp_task_t   *barrier_task      = NULL;
     ucc_tl_ucp_task_t   *onesided_task     = NULL;
     ucc_tl_ucp_allreduce_sw_host_allgather_t *allgather_data;
+
+    printf("nick sw task init start\n");
 
     tl_debug(UCC_TL_TEAM_LIB(tl_team), "allocating pipe\n");
     if ((status = ucc_tl_ucp_allreduce_sliding_window_alloc_pipe(
@@ -234,6 +238,8 @@ ucc_tl_ucp_allreduce_sliding_window_task_init(ucc_base_coll_args_t *coll_args,
     UCC_CHECK_GOTO(ucc_schedule_add_task(task->allreduce_sliding_window.sw_sched, &barrier_task->super),
                    out, status);
 
+    printf("nick sw task init done\n");
+
     return UCC_OK;
 out:
     return status;
@@ -251,6 +257,8 @@ ucc_status_t ucc_tl_ucp_allreduce_sliding_window_allgather_info_finalize(
     size_t allgather_size = sizeof(ucc_tl_ucp_allreduce_sw_host_allgather_t);
     ucc_tl_ucp_allreduce_sw_host_allgather_t *all_host_allgather =
         PTR_OFFSET(sw_task->allreduce_sliding_window.allgather_data, allgather_size);
+
+    printf("nick ucc_tl_ucp_allreduce_sliding_window_allgather_info_finalize\n");
 
     for (i = 0; i < team_size; i++) {
         ucs_status_t ucs_status = UCS_OK;
@@ -292,6 +300,8 @@ ucc_status_t ucc_tl_ucp_allreduce_sliding_window_allgather_info_finalize(
         }
     }
 
+    printf("nick done in ucc_tl_ucp_allreduce_sliding_window_allgather_info_finalize\n");
+
     return status;
 }
 
@@ -308,6 +318,8 @@ ucc_tl_ucp_allreduce_sliding_window_free_gwbi(ucc_coll_task_t *coll_task)
         task->allreduce_sliding_window.pipe;
     int num_get_bufs =
         UCC_TL_UCP_TEAM_LIB(tl_team)->cfg.allreduce_sliding_window_num_get_bufs;
+
+    printf("nick ucc_tl_ucp_allreduce_sliding_window_free_gwbi\n");
 
     if (!in_place)
         ucc_free(task->allreduce_sliding_window.sbufs);
