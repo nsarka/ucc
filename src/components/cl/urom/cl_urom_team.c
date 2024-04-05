@@ -80,7 +80,7 @@ ucc_status_t ucc_cl_urom_team_create_test(ucc_base_team_t *cl_team)
                 team->teams[team->n_teams] = notif->ucc.team_create_nqe.team;
                 ++team->n_teams;
                 ucc_status = ucc_coll_score_build_default(cl_team, UCC_CL_UROM_DEFAULT_SCORE,
-                                          ucc_cl_urom_coll_init, UCC_COLL_TYPE_ALLTOALL | UCC_COLL_TYPE_ALLREDUCE | UCC_COLL_TYPE_ALLTOALLV | UCC_COLL_TYPE_REDUCE_SCATTER | UCC_COLL_TYPE_REDUCE_SCATTERV | UCC_COLL_TYPE_ALLGATHER,
+                                          ucc_cl_urom_coll_init, UCC_COLL_TYPE_ALLTOALL | UCC_COLL_TYPE_ALLREDUCE | UCC_COLL_TYPE_ALLTOALLV | UCC_COLL_TYPE_REDUCE_SCATTER | UCC_COLL_TYPE_REDUCE_SCATTERV | UCC_COLL_TYPE_ALLGATHER | UCC_COLL_TYPE_ALLGATHERV,
                                           mem_types, mt_n, &score);
                 if (UCC_OK != ucc_status) {
                     return ucc_status;

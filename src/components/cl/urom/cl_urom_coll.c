@@ -36,6 +36,10 @@ ucc_status_t ucc_cl_urom_allgather_full_init(
                          ucc_base_coll_args_t *coll_args, ucc_base_team_t *team,
                          ucc_coll_task_t **task);
 
+ucc_status_t ucc_cl_urom_allgatherv_full_init(
+                         ucc_base_coll_args_t *coll_args, ucc_base_team_t *team,
+                         ucc_coll_task_t **task);
+
 ucc_status_t ucc_cl_urom_coll_init(ucc_base_coll_args_t *coll_args,
                                    ucc_base_team_t      *team,
                                    ucc_coll_task_t     **task)
@@ -74,6 +78,8 @@ ucc_status_t ucc_cl_urom_coll_init(ucc_base_coll_args_t *coll_args,
             return ucc_cl_urom_alltoallv_full_init(coll_args, team, task);
         case UCC_COLL_TYPE_ALLGATHER:
             return ucc_cl_urom_allgather_full_init(coll_args, team, task);
+        case UCC_COLL_TYPE_ALLGATHERV:
+            return ucc_cl_urom_allgatherv_full_init(coll_args, team, task);
         case UCC_COLL_TYPE_ALLREDUCE:
             return ucc_cl_urom_allreduce_full_init(coll_args, team, task);
         case UCC_COLL_TYPE_REDUCE_SCATTER:

@@ -10,6 +10,10 @@ allgather =              \
     allgather/allgather.h \
     allgather/allgather.c
 
+allgatherv =              \
+    allgatherv/allgatherv.h \
+    allgatherv/allgatherv.c
+
 alltoallv =               \
     alltoallv/alltoallv.h \
     alltoallv/alltoallv.c
@@ -35,6 +39,7 @@ sources =             \
 	cl_urom_coll.c    \
 	$(alltoall)		  \
 	$(allgather)      \
+	$(allgatherv)      \
 	$(alltoallv)      \
 	$(reduce_scatter) \
 	$(reduce_scatterv) \
