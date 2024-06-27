@@ -43,29 +43,46 @@ class test_reduce : public UccCollArgs, public testing::Test {
             coll->coll_type = UCC_COLL_TYPE_REDUCE;
             coll->op        = T::redop;
             coll->root      = root;
+
             if (r != root || !inplace) {
-                coll->src.info.mem_type = mem_type;
+                ucc_memory_type_t src_mem_type = mem_type;
+
+#ifdef HAVE_CUDA
+                if (mem_symmetry == TEST_MEM_ASYMMETRIC_SRC_MISMATCH) {
+                    src_mem_type = ((mem_type == UCC_MEMORY_TYPE_CUDA) ?
+                                   UCC_MEMORY_TYPE_HOST : UCC_MEMORY_TYPE_CUDA);
+                }
+#endif
+                coll->src.info.mem_type = src_mem_type;
                 coll->src.info.count    = (ucc_count_t)count;
                 coll->src.info.datatype = dt;
                 UCC_CHECK(ucc_mc_alloc(&ctxs[r]->src_mc_header,
-                                       ucc_dt_size(dt) * count, mem_type));
+                                       ucc_dt_size(dt) * count, src_mem_type));
                 coll->src.info.buffer = ctxs[r]->src_mc_header->addr;
                 UCC_CHECK(ucc_mc_memcpy(coll->src.info.buffer,
                                         ctxs[r]->init_buf,
-                                        ucc_dt_size(dt) * count, mem_type,
+                                        ucc_dt_size(dt) * count, src_mem_type,
                                         UCC_MEMORY_TYPE_HOST));
             }
             if (r == root) {
-                coll->dst.info.mem_type = mem_type;
+                ucc_memory_type_t dst_mem_type = mem_type;
+
+#ifdef HAVE_CUDA
+                if (mem_symmetry == TEST_MEM_ASYMMETRIC_DST_MISMATCH) {
+                    dst_mem_type = ((mem_type == UCC_MEMORY_TYPE_CUDA) ?
+                                   UCC_MEMORY_TYPE_HOST : UCC_MEMORY_TYPE_CUDA);
+                }
+#endif
+                coll->dst.info.mem_type = dst_mem_type;
                 coll->dst.info.count = (ucc_count_t)count;
                 coll->dst.info.datatype = dt;
                 UCC_CHECK(ucc_mc_alloc(&ctxs[r]->dst_mc_header,
-                                       ucc_dt_size(dt) * count, mem_type));
+                                       ucc_dt_size(dt) * count, dst_mem_type));
                 coll->dst.info.buffer = ctxs[r]->dst_mc_header->addr;
                 if (inplace) {
                     UCC_CHECK(ucc_mc_memcpy(coll->dst.info.buffer,
                               ctxs[r]->init_buf, ucc_dt_size(dt) * count,
-                              mem_type, UCC_MEMORY_TYPE_HOST));
+                              dst_mem_type, UCC_MEMORY_TYPE_HOST));
                 }
             }
             if (inplace) {
@@ -154,7 +171,7 @@ class test_reduce_cuda : public test_reduce<T> {};
 TYPED_TEST_CASE(test_reduce_host, CollReduceTypeOpsHost);
 TYPED_TEST_CASE(test_reduce_cuda, CollReduceTypeOpsCuda);
 
-#define TEST_DECLARE(_mem_type, _inplace, _repeat, _persistent)                \
+#define TEST_DECLARE(_mem_type, _inplace, _repeat, _persistent, _mem_sym)      \
     {                                                                          \
         std::array<int, 3> counts{4, 256, 65536};                              \
         CHECK_TYPE_OP_SKIP(TypeParam::dt, TypeParam::redop, _mem_type);        \
@@ -164,6 +181,7 @@ TYPED_TEST_CASE(test_reduce_cuda, CollReduceTypeOpsCuda);
                 int           size = team->procs.size();                       \
                 UccCollCtxVec ctxs;                                            \
                 SET_MEM_TYPE(_mem_type);                                       \
+                SET_MEM_SYMMETRY(_mem_sym);                                    \
                 this->set_inplace(_inplace);                                   \
                 this->data_init(size, TypeParam::dt, count, ctxs, _persistent);\
                 UccReq req(team, ctxs);                                        \
@@ -180,50 +198,117 @@ TYPED_TEST_CASE(test_reduce_cuda, CollReduceTypeOpsCuda);
     }
 
 TYPED_TEST(test_reduce_host, single) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_NO_INPLACE, 1, 0);
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_NO_INPLACE, 1, 0, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_host, single_persistent) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_NO_INPLACE, 3, 1);
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_NO_INPLACE, 3, 1, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_host, single_inplace) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_INPLACE, 1, 0);
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_INPLACE, 1, 0, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_host, single_persistent_inplace) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_INPLACE, 3, 1);
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_INPLACE, 3, 1, TEST_MEM_SYMMETRIC);
 }
 
 #ifdef HAVE_CUDA
+
+// Symmetric
 TYPED_TEST(test_reduce_cuda, single) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_NO_INPLACE, 1, 0);
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_NO_INPLACE, 1, 0, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_cuda, single_persistent) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_NO_INPLACE, 3, 1);
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_NO_INPLACE, 3, 1, TEST_MEM_SYMMETRIC);
 }
 TYPED_TEST(test_reduce_cuda, single_inplace) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_INPLACE, 1, 0);
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_INPLACE, 1, 0, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_cuda, single_persistent_inplace) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_INPLACE, 3, 1);
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_INPLACE, 3, 1, TEST_MEM_SYMMETRIC);
 }
 TYPED_TEST(test_reduce_cuda, single_managed) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA_MANAGED, TEST_NO_INPLACE, 1, 0);
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA_MANAGED, TEST_NO_INPLACE, 1, 0, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_cuda, single_persistent_managed) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA_MANAGED, TEST_NO_INPLACE, 3, 1);
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA_MANAGED, TEST_NO_INPLACE, 3, 1, TEST_MEM_SYMMETRIC);
 }
 TYPED_TEST(test_reduce_cuda, single_inplace_managed) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA_MANAGED, TEST_INPLACE, 1, 0);
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA_MANAGED, TEST_INPLACE, 1, 0, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_cuda, single_persistent_inplace_managed) {
-    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA_MANAGED, TEST_INPLACE, 3, 1);
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA_MANAGED, TEST_INPLACE, 3, 1, TEST_MEM_SYMMETRIC);
 }
+
+// Asymmetric src mismatch CUDA
+TYPED_TEST(test_reduce_cuda, single_asymmetric_src_mismatch_cuda) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_NO_INPLACE, 1, 0, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_cuda, single_persistent_asymmetric_src_mismatch_cuda) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_NO_INPLACE, 3, 1, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+TYPED_TEST(test_reduce_cuda, single_inplace_asymmetric_src_mismatch_cuda) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_INPLACE, 1, 0, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_cuda, single_persistent_inplace_asymmetric_src_mismatch_cuda) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_INPLACE, 3, 1, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+
+// Asymmetric dst mismatch CUDA
+TYPED_TEST(test_reduce_cuda, single_asymmetric_dst_mismatch_cuda) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_NO_INPLACE, 1, 0, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_cuda, single_persistent_asymmetric_dst_mismatch_cuda) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_NO_INPLACE, 3, 1, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
+}
+TYPED_TEST(test_reduce_cuda, single_inplace_asymmetric_dst_mismatch_cuda) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_INPLACE, 1, 0, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_cuda, single_persistent_inplace_asymmetric_dst_mismatch_cuda) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_CUDA, TEST_INPLACE, 3, 1, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
+}
+
+// Asymmetric src mismatch HOST
+TYPED_TEST(test_reduce_cuda, single_asymmetric_src_mismatch_host) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_NO_INPLACE, 1, 0, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_cuda, single_persistent_asymmetric_src_mismatch_host) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_NO_INPLACE, 3, 1, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+TYPED_TEST(test_reduce_cuda, single_inplace_asymmetric_src_mismatch_host) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_INPLACE, 1, 0, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_cuda, single_persistent_inplace_asymmetric_src_mismatch_host) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_INPLACE, 3, 1, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+
+// Asymmetric dst mismatch HOST
+TYPED_TEST(test_reduce_cuda, single_asymmetric_dst_mismatch_host) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_NO_INPLACE, 1, 0, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_cuda, single_persistent_asymmetric_dst_mismatch_host) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_NO_INPLACE, 3, 1, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
+}
+TYPED_TEST(test_reduce_cuda, single_inplace_asymmetric_dst_mismatch_host) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_INPLACE, 1, 0, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_cuda, single_persistent_inplace_asymmetric_dst_mismatch_host) {
+    TEST_DECLARE(UCC_MEMORY_TYPE_HOST, TEST_INPLACE, 3, 1, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
+}
+
 #endif
 
 #define TEST_DECLARE_MULTIPLE(_mem_type, _inplace)                             \
@@ -286,7 +371,7 @@ template <typename T> class test_reduce_dbt : public test_reduce<T> {
 template <typename T> class test_reduce_2step : public test_reduce<T> {
 };
 
-#define TEST_DECLARE_WITH_ENV(_env, _n_procs, _persistent)                     \
+#define TEST_DECLARE_WITH_ENV(_env, _n_procs, _persistent, _mem_sym)           \
     {                                                                          \
         UccJob        job(_n_procs, UccJob::UCC_JOB_CTX_GLOBAL, _env);         \
         UccTeam_h     team   = job.create_team(_n_procs);                      \
@@ -304,6 +389,7 @@ template <typename T> class test_reduce_2step : public test_reduce<T> {
                 for (auto m : mt) {                                            \
                     CHECK_TYPE_OP_SKIP(TypeParam::dt, TypeParam::redop, m);    \
                     SET_MEM_TYPE(m);                                           \
+                    SET_MEM_SYMMETRY(_mem_sym);                                \
                     this->set_inplace(inplace);                                \
                     this->data_init(_n_procs, TypeParam::dt, count, ctxs,      \
                                     _persistent);                              \
@@ -332,17 +418,34 @@ ucc_job_env_t reduce_2step_env = {{"UCC_CL_HIER_TUNE", "reduce:@2step:0-inf:inf"
                                   {"UCC_CLS", "all"}};
 
 TYPED_TEST(test_reduce_avg_order, avg_post_op) {
-    TEST_DECLARE_WITH_ENV(post_op_env, 15, true);
+    TEST_DECLARE_WITH_ENV(post_op_env, 15, true, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_dbt, reduce_dbt_shift) {
-    TEST_DECLARE_WITH_ENV(reduce_dbt_env, 15, true);
+    TEST_DECLARE_WITH_ENV(reduce_dbt_env, 15, true, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_dbt, reduce_dbt_mirror) {
-    TEST_DECLARE_WITH_ENV(reduce_dbt_env, 16, true);
+    TEST_DECLARE_WITH_ENV(reduce_dbt_env, 16, true, TEST_MEM_SYMMETRIC);
 }
 
 TYPED_TEST(test_reduce_2step, 2step) {
-    TEST_DECLARE_WITH_ENV(reduce_2step_env, 16, false);
+    TEST_DECLARE_WITH_ENV(reduce_2step_env, 16, false, TEST_MEM_SYMMETRIC);
+}
+
+// Asymmetric memory
+TYPED_TEST(test_reduce_avg_order, avg_post_op_asymmetric) {
+    TEST_DECLARE_WITH_ENV(post_op_env, 15, true, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_dbt, reduce_dbt_shift_asymmetric) {
+    TEST_DECLARE_WITH_ENV(reduce_dbt_env, 15, true, TEST_MEM_ASYMMETRIC_SRC_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_dbt, reduce_dbt_mirror_asymmetric) {
+    TEST_DECLARE_WITH_ENV(reduce_dbt_env, 16, true, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
+}
+
+TYPED_TEST(test_reduce_2step, 2step_asymmetric) {
+    TEST_DECLARE_WITH_ENV(reduce_2step_env, 16, false, TEST_MEM_ASYMMETRIC_DST_MISMATCH);
 }
