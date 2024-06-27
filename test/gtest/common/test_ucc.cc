@@ -707,6 +707,12 @@ void UccCollArgs::set_inplace(gtest_ucc_inplace_t _inplace)
     inplace = _inplace;
 }
 
+void UccCollArgs::set_mem_symmetry(gtest_ucc_mem_symmetry_t _mem_symmetry)
+{
+    ucc_assert(!inplace);
+    mem_symmetry = _mem_symmetry;
+}
+
 void clear_buffer(void *_buf, size_t size, ucc_memory_type_t mt, uint8_t value)
 {
     void *buf = _buf;

@@ -87,11 +87,7 @@ static ucc_status_t ucc_coll_score_map_lookup(ucc_score_map_t *map,
     ucc_list_link_t *list;
     ucc_msg_range_t *r;
 
-    if (mt == UCC_MEMORY_TYPE_ASYMMETRIC) {
-        /* TODO */
-        ucc_debug("asymmetric memory type is not supported");
-        return UCC_ERR_NOT_SUPPORTED;
-    } else if (mt == UCC_MEMORY_TYPE_NOT_APPLY) {
+    if (mt == UCC_MEMORY_TYPE_NOT_APPLY) {
         /* Temporary solution: for Barrier, Fanin, Fanout - use
            "host" range list */
         mt = UCC_MEMORY_TYPE_HOST;

@@ -36,10 +36,17 @@ typedef enum {
     TEST_INPLACE
 } gtest_ucc_inplace_t;
 
+typedef enum {
+    TEST_MEM_SYMMETRIC,               /* src/dst mem types match */
+    TEST_MEM_ASYMMETRIC_SRC_MISMATCH, /* src != mem_type */
+    TEST_MEM_ASYMMETRIC_DST_MISMATCH, /* dst != mem_type */
+} gtest_ucc_mem_symmetry_t;
+
 class UccCollArgs {
 protected:
     ucc_memory_type_t mem_type;
     gtest_ucc_inplace_t inplace;
+    gtest_ucc_mem_symmetry_t mem_symmetry;
     void alltoallx_init_buf(int src_rank, int dst_rank, uint8_t *buf, size_t len)
     {
         for (int i = 0; i < len; i++) {
@@ -65,6 +72,7 @@ public:
         // defaults
         mem_type = UCC_MEMORY_TYPE_HOST;
         inplace = TEST_NO_INPLACE;
+        mem_symmetry = TEST_MEM_SYMMETRIC;
     }
     virtual ~UccCollArgs() {}
     virtual void data_init(int nprocs, ucc_datatype_t dtype,
@@ -74,6 +82,7 @@ public:
     virtual bool data_validate(UccCollCtxVec args) = 0;
     void set_mem_type(ucc_memory_type_t _mt);
     void set_inplace(gtest_ucc_inplace_t _inplace);
+    void set_mem_symmetry(gtest_ucc_mem_symmetry_t mem_symmetry);
 };
 
 #define SET_MEM_TYPE(_mt) do {                  \
@@ -81,6 +90,16 @@ public:
             GTEST_SKIP();                       \
         }                                       \
         this->mem_type = _mt;                   \
+    } while (0)
+
+#define SET_MEM_SYMMETRY(_sym) do {                               \
+        if (_sym != TEST_MEM_SYMMETRIC &&                         \
+            (UCC_OK != ucc_mc_available(UCC_MEMORY_TYPE_CUDA) ||  \
+            UCC_OK != ucc_mc_available(UCC_MEMORY_TYPE_HOST)  ||  \
+            this->inplace)) {                                     \
+            GTEST_SKIP();                                         \
+        }                                                         \
+        this->mem_symmetry = _sym;                                \
     } while (0)
 
 class ThreadAllgather;

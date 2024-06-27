@@ -180,7 +180,6 @@ ucc_memory_type_t ucc_coll_args_mem_type(const ucc_coll_args_t *args,
         return args->dst.info.mem_type;
     case UCC_COLL_TYPE_ALLGATHERV:
     case UCC_COLL_TYPE_REDUCE_SCATTERV:
-        return args->dst.info_v.mem_type;
     case UCC_COLL_TYPE_ALLTOALLV:
         return args->dst.info_v.mem_type;
     case UCC_COLL_TYPE_REDUCE:
