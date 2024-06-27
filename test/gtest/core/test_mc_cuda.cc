@@ -62,7 +62,6 @@ class test_mc_cuda : public ucc::test {
         };
 
         if (UCC_OK != ucc_mc_available(UCC_MEMORY_TYPE_CUDA)) {
-            printf("nick cuda mc not avail\n");
             GTEST_SKIP();
         }
 
