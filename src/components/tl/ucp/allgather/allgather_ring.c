@@ -60,6 +60,11 @@ void ucc_tl_ucp_allgather_ring_progress(ucc_coll_task_t *coll_task)
         UCPCHECK_GOTO(
             ucc_tl_ucp_send_nb(buf, data_size, rmem, sendto, team, task),
             task, out);
+        printf("rank %d sending to rank %d data ptr %p: ", trank, sendto, buf);
+        for (int z = 0; z < data_size; z++) {
+            printf("%d ", ((char*)buf)[z]);
+        }
+        printf("\n");
         buf = PTR_OFFSET(rbuf, rblock * data_size);
         UCPCHECK_GOTO(
             ucc_tl_ucp_recv_nb(buf, data_size, rmem, recvfrom, team, task),
@@ -119,6 +124,7 @@ ucc_status_t ucc_tl_ucp_allgather_ring_init_common(ucc_tl_ucp_task_t *task)
     if (!(task->flags & UCC_TL_UCP_TASK_FLAG_SUBSET)) {
         if (team->cfg.use_reordering) {
             sbgp = ucc_topo_get_sbgp(team->topo, UCC_SBGP_FULL_HOST_ORDERED);
+            printf("nick using rank reordering. old rank=%d, new rank=%d\n", task->subset.myrank, sbgp->group_rank);
             task->subset.myrank = sbgp->group_rank;
             task->subset.map    = sbgp->map;
         }
