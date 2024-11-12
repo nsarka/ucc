@@ -54,6 +54,7 @@ typedef struct ucc_cl_hier_lib_config {
     ucc_pipeline_params_t   allreduce_rab_pipeline;
     ucc_pipeline_params_t   bcast_2step_pipeline;
     ucc_pipeline_params_t   reduce_2step_pipeline;
+    ucc_pipeline_params_t   allgatherv_node_split_pipeline;
 } ucc_cl_hier_lib_config_t;
 
 typedef struct ucc_cl_hier_context_config {
@@ -116,7 +117,8 @@ UCC_CLASS_DECLARE(ucc_cl_hier_team_t, ucc_base_context_t *,
      UCC_COLL_TYPE_ALLREDUCE |                                                 \
      UCC_COLL_TYPE_BARRIER |                                                   \
      UCC_COLL_TYPE_BCAST |                                                     \
-     UCC_COLL_TYPE_REDUCE)
+     UCC_COLL_TYPE_REDUCE |                                                    \
+     UCC_COLL_TYPE_ALLGATHERV)
 
 ucc_status_t ucc_cl_hier_coll_init(ucc_base_coll_args_t *coll_args,
                                    ucc_base_team_t      *team,
