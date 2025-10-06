@@ -323,6 +323,17 @@ struct ucc_tl_cuda_task {
             void          *evtCompletion;
             size_t         coll_id; // Coll id for the NVLS task in flight slot
         } allreduce_nvls;
+        struct {
+            int            stage;
+            ucc_datatype_t dt;
+            void          *sbuf;
+            void          *rbuf;
+            size_t         buf_size_bytes;
+            CUdeviceptr    mc_va; // Memory handle for MC symmetric memory
+            CUdeviceptr    uc_va; // Memory handle for UC symmetric memory
+            void          *evtCompletion;
+            size_t         coll_id; // Coll id for the NVLS task in flight slot
+        } allgatherv_nvls;
 #endif
     };
 };

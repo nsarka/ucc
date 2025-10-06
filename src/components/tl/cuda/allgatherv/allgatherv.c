@@ -21,6 +21,10 @@ ucc_base_coll_alg_info_t
             {.id   = UCC_TL_CUDA_ALLGATHERV_ALG_LINEAR,
              .name = "linear",
              .desc = "linear allgatherv algorithm"},
+        [UCC_TL_CUDA_ALLGATHERV_ALG_NVLS] =
+            {.id   = UCC_TL_CUDA_ALLGATHERV_ALG_NVLS,
+             .name = "nvls",
+             .desc = "nvls allgatherv algorithm"},
         [UCC_TL_CUDA_ALLGATHERV_ALG_LAST] = {
             .id = 0, .name = NULL, .desc = NULL}};
 
@@ -42,8 +46,8 @@ size_t ucc_tl_cuda_allgatherv_get_offset(const ucc_tl_cuda_task_t *task,
 }
 
 ucc_status_t ucc_tl_cuda_allgatherv_init(ucc_base_coll_args_t *coll_args,
-                                         ucc_base_team_t *     tl_team,
-                                         ucc_coll_task_t **    task_p)
+                                         ucc_base_team_t      *tl_team,
+                                         ucc_coll_task_t     **task_p)
 {
     ucc_tl_cuda_team_t *team = ucc_derived_of(tl_team, ucc_tl_cuda_team_t);
 
