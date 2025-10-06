@@ -192,7 +192,6 @@ typedef struct ucc_tl_cuda_team {
     ucc_tl_cuda_scratch_t      scratch;
     cudaStream_t               stream;
     ucc_tl_cuda_rank_id_t     *ids;
-    int                       *shared_handles;
     ucc_team_oob_coll_t        oob;
     void                      *oob_req;
 #ifdef HAVE_NVLS
